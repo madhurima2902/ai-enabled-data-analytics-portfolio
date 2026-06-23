@@ -216,3 +216,25 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Analytics project data files
+data/raw/*.csv
+data/processed/*.csv
+01-banking-operations-analytics/data/raw/*.csv
+01-banking-operations-analytics/data/processed/*.csv
+02-supply-chain-performance-analytics/data/raw/*.csv
+02-supply-chain-performance-analytics/data/processed/*.csv
+03-retail-customer-operations-analytics/data/raw/*.csv
+03-retail-customer-operations-analytics/data/processed/*.csv
+
+# Power BI files
+*.pbix
+
+# Local database backup/export files
+*.bak
+*.dump
+*.sql.gz
+
+# OS files
+.DS_Store
+Thumbs.db

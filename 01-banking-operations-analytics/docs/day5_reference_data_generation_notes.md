@@ -1,4 +1,4 @@
-# Day 5: Reference Data Generation
+# Reference Data Generation
 
 ## Objective
 

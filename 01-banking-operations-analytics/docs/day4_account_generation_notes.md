@@ -1,4 +1,4 @@
-# Day 4: Account Master Data Generation
+# Account Master Data Generation
 
 ## Objective
 

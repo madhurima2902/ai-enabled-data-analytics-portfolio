@@ -1,4 +1,4 @@
-# Day 3: Customer Master Data Generation
+# Customer Master Data Generation
 
 ## Objective
 

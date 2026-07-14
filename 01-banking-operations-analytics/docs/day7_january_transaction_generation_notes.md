@@ -1,4 +1,4 @@
-# Day 7: January Transaction Data Generation
+# January Transaction Data Generation
 
 ## Objective
 

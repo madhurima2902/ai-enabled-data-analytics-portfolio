@@ -1,4 +1,4 @@
-# Week 2 Day 3: Staging Layer Creation
+# Staging Layer Creation
 
 ## Objective
 

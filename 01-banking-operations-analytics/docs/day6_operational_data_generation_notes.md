@@ -1,4 +1,4 @@
-# Day 6: Operational Data Generation
+# Operational Data Generation
 
 ## Objective
 

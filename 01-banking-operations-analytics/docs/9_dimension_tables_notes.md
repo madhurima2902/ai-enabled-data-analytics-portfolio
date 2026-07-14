@@ -1,4 +1,4 @@
-# Week 2 Day 4: Warehouse Dimension Tables
+# Warehouse Dimension Tables
 
 ## Objective
 

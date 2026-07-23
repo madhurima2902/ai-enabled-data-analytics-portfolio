@@ -1,6 +1,5 @@
 # Insights and Recommendations
 
-<<<<<<< HEAD
 ## Executive Summary
 
 The dashboard identifies workforce patterns across headcount, demographics, performance review tracking, and attrition. The strongest business insights come from attrition analysis, especially overtime, travel frequency, early tenure, job role, and stock option level.
@@ -8,16 +7,14 @@ The dashboard identifies workforce patterns across headcount, demographics, perf
 The project should be interpreted as an HR analytics reporting exercise using fictional data. The insights show patterns and associations, not proven causation.
 
 ## Key Metrics
-=======
+
 ## Executive Metrics
->>>>>>> a3a6b12dd8d60cfe99c2b3ed41a21f2ef58f24fb
 
 | Metric | Value |
 |---|---:|
 | Total Employees | 1,470 |
 | Active Employees | 1,233 |
 | Inactive Employees | 237 |
-<<<<<<< HEAD
 | Attrition Rate | 16.1% |
 | Average Age | 29 |
 | Average Salary | $112,956 |
@@ -100,7 +97,7 @@ The dashboard identifies risk patterns but does not prove causation. A real HR t
 - Compensation benchmarking
 - Role and department-level workload analysis
 - Tenure and promotion history analysis
-=======
+
 | Overall Attrition Rate | 16.1% |
 
 ## Attrition Drivers Observed
@@ -188,4 +185,3 @@ Recommended follow-up:
 ## Responsible Interpretation
 
 These patterns should be treated as business signals, not causal proof. Recommended next steps include deeper analysis with role, department, tenure, compensation, manager, performance, and employee engagement context.
->>>>>>> a3a6b12dd8d60cfe99c2b3ed41a21f2ef58f24fb

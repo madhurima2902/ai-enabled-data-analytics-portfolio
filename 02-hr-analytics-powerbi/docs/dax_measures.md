@@ -1,6 +1,5 @@
 # DAX Measures
 
-<<<<<<< HEAD
 This document lists the main DAX logic used in the Power BI report.
 
 The report uses a dedicated measure table:
@@ -25,7 +24,7 @@ InactiveEmployees =
 COALESCE (
     CALCULATE (
         [TotalEmployees],
-=======
+
 This document lists key DAX patterns used in the HR Analytics dashboard.
 
 > Table names may vary slightly in the Power BI file. The examples below use the project naming convention used during development.
@@ -50,12 +49,10 @@ Inactive Employees =
 COALESCE (
     CALCULATE (
         [Total Employees],
->>>>>>> a3a6b12dd8d60cfe99c2b3ed41a21f2ef58f24fb
         dim_Employee[Attrition] = "Yes"
     ),
     0
 )
-<<<<<<< HEAD
 
 % Attrition Rate =
 COALESCE (
@@ -94,7 +91,6 @@ AverageSalary =
 AVERAGE ( dim_Employee[Salary] )
 
 EmployeeStatus =
-=======
 ```
 
 ```DAX
@@ -142,13 +138,11 @@ AVERAGE ( dim_Employee[Salary] )
 
 ```DAX
 Employee Status =
->>>>>>> a3a6b12dd8d60cfe99c2b3ed41a21f2ef58f24fb
 IF (
     dim_Employee[Attrition] = "No",
     "Active",
     "Inactive"
 )
-<<<<<<< HEAD
 
 FullName =
 dim_Employee[FirstName] & " " & dim_Employee[LastName]
@@ -189,7 +183,6 @@ VAR LastValidReview =
         MAX ( fact_PerformanceRating[ReviewDate] ),
         fact_PerformanceRating[ReviewDate] >= HireDate
     )
-=======
 ```
 
 ## Performance Tracker Display Measures
@@ -207,13 +200,11 @@ IF (
 Last Review Date Display =
 VAR LastReview =
     MAX ( fact_PerformanceRating[ReviewDate] )
->>>>>>> a3a6b12dd8d60cfe99c2b3ed41a21f2ef58f24fb
 RETURN
     IF (
         NOT HASONEVALUE ( dim_Employee[EmployeeID] ),
         "Select employee",
         IF (
-<<<<<<< HEAD
             ISBLANK ( LastValidReview ),
             "No valid review found",
             FORMAT ( LastValidReview, "mm/dd/yyyy" )
@@ -232,7 +223,6 @@ VAR LastValidReview =
     )
 VAR BaseDate =
     COALESCE ( LastValidReview, HireDate )
-=======
             ISBLANK ( LastReview ),
             "No review found",
             FORMAT ( LastReview, "mm/dd/yyyy" )
@@ -250,7 +240,6 @@ VAR HireDate =
     SELECTEDVALUE ( dim_Employee[HireDate] )
 VAR BaseDate =
     COALESCE ( LastReview, HireDate )
->>>>>>> a3a6b12dd8d60cfe99c2b3ed41a21f2ef58f24fb
 RETURN
     IF (
         NOT HASONEVALUE ( dim_Employee[EmployeeID] ),
@@ -261,7 +250,6 @@ RETURN
             FORMAT ( BaseDate + 365, "mm/dd/yyyy" )
         )
     )
-<<<<<<< HEAD
 
 Current Department =
 IF (
@@ -278,12 +266,10 @@ IF (
 )
 
 Selected Years At Company =
-=======
 ```
 
 ```DAX
 Selected Years At Company Display =
->>>>>>> a3a6b12dd8d60cfe99c2b3ed41a21f2ef58f24fb
 VAR Years =
     SELECTEDVALUE ( dim_Employee[YearsAtCompany] )
 RETURN
@@ -296,7 +282,6 @@ RETURN
             FORMAT ( Years, "0" ) & " years"
         )
     )
-<<<<<<< HEAD
 
 Selected Employee Status =
 IF (
@@ -383,7 +368,6 @@ RETURN
         BLANK ()
     )
 
-=======
 ```
 
 ## Performance Rating Measures
@@ -453,7 +437,6 @@ RETURN
 ## Attrition Measures
 
 ```DAX
->>>>>>> a3a6b12dd8d60cfe99c2b3ed41a21f2ef58f24fb
 Overtime Attrition Gap =
 CALCULATE (
     [% Attrition Rate],
@@ -464,8 +447,7 @@ CALCULATE (
     [% Attrition Rate],
     dim_Employee[OverTime] = "No"
 )
-<<<<<<< HEAD
-=======
+
 ```
 
 ```DAX
@@ -497,4 +479,3 @@ SWITCH (
 - Use `SELECTEDVALUE()` only with columns, not measures.
 - Use `USERELATIONSHIP()` only when the exact inactive relationship already exists in the model.
 - For employee-level pages, protect measures with `HASONEVALUE()` so visuals do not accidentally show aggregate values.
->>>>>>> a3a6b12dd8d60cfe99c2b3ed41a21f2ef58f24fb

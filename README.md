@@ -1,32 +1,32 @@
 # AI-Enabled Data Analytics Portfolio
 
-This repository showcases end-to-end data analytics projects focused on business intelligence, data quality, dimensional modeling, incremental refresh, KPI reporting, and AI-assisted analysis.
+This repository showcases end-to-end data analytics projects focused on business intelligence, data quality, dimensional modeling, KPI reporting, dashboard storytelling, and AI-assisted analysis.
 
-The goal of this portfolio is to demonstrate practical analytics skills required for modern Data Analyst, Business Intelligence Analyst, and Analytics Consultant roles.
+The goal of this portfolio is to demonstrate practical analytics skills required for modern Data Analyst, Business Intelligence Analyst, Reporting Analyst, and Analytics Consultant roles.
 
 ## Portfolio Objective
 
 This portfolio is built to show the ability to:
 
 * Understand business problems
-* Design realistic analytical datasets
-* Build raw, staging, and warehouse layers
-* Write business-focused SQL queries
-* Perform data quality checks
-* Model data for reporting
+* Design and document analytical datasets
+* Build fact and dimension models
+* Write business-focused SQL and DAX measures
+* Perform data quality and logic checks
 * Build Power BI dashboards
 * Explain insights to stakeholders
 * Use AI tools to improve productivity, documentation, and analysis quality
 
 ## Current Project Roadmap
 
-| Project | Domain                               | Status      | Core Focus                                                                      |
-| ------- | ------------------------------------ | ----------- | ------------------------------------------------------------------------------- |
-| 01      | Banking Operations Analytics         | In Progress | Customer intelligence, transactions, complaints, campaigns, incremental refresh |
-| 02      | Supply Chain Performance Analytics   | Planned     | Inventory, orders, suppliers, delivery performance, operational KPIs            |
-| 03      | Retail Customer Operations Analytics | Planned     | Sales, customers, products, channels, returns, customer behavior                |
+| Project | Domain | Status | Core Focus |
+| ------- | ------ | ------ | ---------- |
+| 01 | Banking Operations Analytics | In Progress | Customer intelligence, transactions, complaints, campaigns, incremental refresh |
+| 02 | HR Analytics Power BI | Completed / Documentation Added | Workforce overview, demographics, performance tracking, attrition analysis, DAX, Power BI storytelling |
+| 03 | Supply Chain Performance Analytics | Planned | Inventory, orders, suppliers, delivery performance, operational KPIs |
+| 04 | Retail Customer Operations Analytics | Planned | Sales, customers, products, channels, returns, customer behavior |
 
-Additional domains may be added later, such as healthcare, finance, HR analytics, marketing analytics, or operations analytics.
+Additional domains may be added later, such as healthcare, finance, marketing analytics, or operations analytics.
 
 ## Tools & Technologies
 
@@ -35,10 +35,11 @@ Additional domains may be added later, such as healthcare, finance, HR analytics
 * Python
 * Pandas
 * Power BI
+* Power Query
 * DAX
 * GitHub
+* Data modeling
 * Data quality checks
-* Dimensional modeling
 * AI-assisted analysis and documentation
 
 ## Repository Structure
@@ -54,10 +55,11 @@ ai-enabled-data-analytics-portfolio/
 │   ├── docs/
 │   └── README.md
 │
-├── 02-supply-chain-performance-analytics/
-│   └── README.md
-│
-├── 03-retail-customer-operations-analytics/
+├── 02-hr-analytics-powerbi/
+│   ├── powerbi/
+│   ├── assets/
+│   ├── docs/
+│   ├── theme/
 │   └── README.md
 │
 ├── portfolio-summary.md
@@ -79,12 +81,11 @@ ai-enabled-data-analytics-portfolio/
 
 ### Data Modeling
 
-* Raw data layer
-* Staging layer
-* Warehouse layer
 * Fact and dimension tables
-* Date dimension
-* Reporting-ready semantic model
+* Date dimensions
+* Active and inactive relationships
+* Reporting-ready semantic models
+* Stakeholder-focused table grain explanation
 
 ### Python
 
@@ -97,13 +98,15 @@ ai-enabled-data-analytics-portfolio/
 
 ### Power BI
 
+* Power Query transformations
 * Data modeling
 * Relationships
 * DAX measures
 * KPI cards
 * Trend analysis
 * Executive dashboards
-* Operational dashboards
+* Drilldown/detail dashboards
+* Report navigation and theme consistency
 
 ### Data Quality
 
@@ -112,30 +115,31 @@ ai-enabled-data-analytics-portfolio/
 * Referential integrity checks
 * Invalid value checks
 * Business rule validation
-* Late-arriving record handling
+* Logic checks for misleading dashboard outputs
 
 ### AI-Assisted Analytics
 
-* Prompt-assisted SQL development
-* Documentation support
+* DAX validation support
+* Dashboard design critique
 * Business insight generation
-* Dashboard narrative creation
+* Documentation support
 * Stakeholder summary drafting
+* Interview-prep narrative creation
 
 ## Project Philosophy
 
-These projects are designed to simulate real business analytics environments rather than simple tutorial-style datasets.
+These projects are designed to simulate real business analytics environments rather than simple tutorial-style outputs.
 
 Each project aims to include:
 
 * Realistic business context
-* Operational-style source data
-* Messy data scenarios
-* SQL-based transformation logic
-* Data quality framework
-* Dashboard-ready warehouse model
+* Clear data model explanation
+* Clean KPI logic
 * Stakeholder-focused reporting
-* Interview-ready documentation
+* Dashboard usability review
+* Insight and recommendation documentation
+* Interview-ready explanation
+* Practical AI-assisted workflow
 
 ## Target Role Alignment
 
@@ -143,6 +147,7 @@ This portfolio is aligned with roles such as:
 
 * Data Analyst
 * Business Intelligence Analyst
+* Power BI Analyst
 * Reporting Analyst
 * Analytics Consultant
 * Operations Analyst
@@ -151,11 +156,8 @@ This portfolio is aligned with roles such as:
 
 ## Portfolio Status
 
-This repository is currently under active development.
-
-The first project, Banking Operations Analytics, is being built as the flagship project. The same architecture and documentation pattern will be reused across future projects to build a consistent and professional analytics portfolio.
+This repository is under active development. The HR Analytics Power BI project is the first completed Power BI-first portfolio project, while the Banking Operations Analytics project is being built as a deeper end-to-end analytics project.
 
 ## Final Goal
 
 The final goal is to create a strong, interview-ready portfolio that demonstrates practical ability to convert raw business data into reliable insights, dashboards, and stakeholder-ready recommendations.
-

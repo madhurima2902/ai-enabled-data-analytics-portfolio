@@ -1,6 +1,5 @@
 # Data Source Notes
 
-<<<<<<< HEAD
 ## Source
 
 This project uses a fictional HR analytics dataset from a DataCamp Power BI case study.
@@ -8,10 +7,7 @@ This project uses a fictional HR analytics dataset from a DataCamp Power BI case
 The dashboard was redesigned and documented as a portfolio project to demonstrate Power BI report development, data modeling, DAX measures, HR KPI analysis, and AI-assisted dashboard development.
 
 ## Important Note
-
-Course instructions, transcripts, and DataCamp UI screenshots are not included in this repository.
-
-The documentation is written in original wording and focuses on:
+The documentation focuses on:
 
 - Business problem framing
 - Dashboard design

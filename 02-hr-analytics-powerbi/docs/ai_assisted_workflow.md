@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # AI-Assisted Workflow
 
 ## Purpose
@@ -114,15 +113,7 @@ The original `Attrition` field used `Yes` and `No`. For reporting, this was refr
 
 This made visuals and legends easier for business users to interpret.
 
-### 2. Performance Tracker Validation
-
-The Performance Tracker initially showed a future next review date even for inactive employees. This was corrected so inactive employees show `Not applicable` for next review.
-
-### 3. Attrition Visual Selection
-
-Stacked percentage charts were avoided for attrition rate because stacked percentages can be misleading. A matrix was used for Department and Job Role because it shows both population size and risk.
-
-### 4. Documentation Support
+### 2. Documentation Support
 
 AI helped convert the Power BI build into interview-ready project documentation, including business problem, data model, DAX measures, insights, limitations, and recommendations.
 
@@ -136,8 +127,6 @@ Final decisions were manually reviewed in Power BI, including:
 - Dashboard layout
 - Business interpretation
 - GitHub documentation wording
-
-## Interview-Safe Explanation
 
 I used AI as a productivity assistant to validate DAX logic, improve dashboard design choices, refine business labels, and draft documentation. I manually reviewed all final calculations, visuals, and insights to ensure they made business sense.
 >>>>>>> a3a6b12dd8d60cfe99c2b3ed41a21f2ef58f24fb

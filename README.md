@@ -21,7 +21,7 @@ This portfolio is built to show the ability to:
 
 | Project | Domain | Status | Core Focus |
 | ------- | ------ | ------ | ---------- |
-| 01 | Banking Operations Analytics | In Progress | Customer intelligence, transactions, complaints, campaigns, incremental refresh |
+| 01 | Banking Operations Analytics | Completed/Documentation Added/Version 2 In progress | Customer intelligence, transactions, complaints, campaigns, incremental refresh |
 | 02 | HR Analytics Power BI | Completed / Documentation Added | Workforce overview, demographics, performance tracking, attrition analysis, DAX, Power BI storytelling |
 | 03 | Supply Chain Performance Analytics | Planned | Inventory, orders, suppliers, delivery performance, operational KPIs |
 | 04 | Retail Customer Operations Analytics | Planned | Sales, customers, products, channels, returns, customer behavior |

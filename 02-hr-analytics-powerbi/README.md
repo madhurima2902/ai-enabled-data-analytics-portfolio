@@ -44,7 +44,7 @@ Key visuals:
 - Active Employees by Department and Job Role
 - Executive summary panel
 
-![Overview](assets/overview.png)
+![Overview](https://github.com/madhurima2902/ai-enabled-data-analytics-portfolio/blob/main/02-hr-analytics-powerbi/assets/01_overview.png)
 
 ### 2. Workforce Demographics
 
@@ -61,7 +61,7 @@ Key visuals:
 - Employees by Marital Status
 - Employees by Ethnicity and Average Salary
 
-![Demographics](assets/demographics.png)
+![Demographics](https://github.com/madhurima2902/ai-enabled-data-analytics-portfolio/blob/main/02-hr-analytics-powerbi/assets/02_demographics.png)
 
 ### 3. Performance Tracker
 
@@ -87,7 +87,7 @@ Important logic added:
 - Inactive employees do not show a misleading future review due date.
 - Historical review details are shown for selected employees.
 
-![Performance Tracker](assets/performance_tracker.png)
+![Performance Tracker](https://github.com/madhurima2902/ai-enabled-data-analytics-portfolio/blob/main/02-hr-analytics-powerbi/assets/03_performance_tracker.png)
 
 ### 4. Attrition Analysis
 
@@ -105,7 +105,7 @@ Key visuals:
 - Attrition by Tenure
 - Attrition by Stock Option Level
 
-![Attrition Analysis](assets/attrition_analysis.png)
+![Attrition Analysis](https://github.com/madhurima2902/ai-enabled-data-analytics-portfolio/blob/main/02-hr-analytics-powerbi/assets/04_attrition_analysis.png)
 
 ## Dataset Summary
 

@@ -58,4 +58,3 @@ The dataset represents a technology workforce scenario with employee profile dat
 Course instructions, transcripts, and DataCamp UI screenshots are intentionally excluded. The project documentation is written in original language for portfolio and interview use.
 
 If raw datasets are added later, confirm that redistribution is allowed by the source/license.
->>>>>>> a3a6b12dd8d60cfe99c2b3ed41a21f2ef58f24fb

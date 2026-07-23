@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-
 # Data Model Documentation
 
 ## Model Overview
@@ -37,14 +35,12 @@ A separate `_Measure` table stores DAX measures.
 ## Model Approach
 
 The dashboard uses a fact and dimension structure to support clean filtering, reusable measures, and stakeholder-focused reporting.
->>>>>>> a3a6b12dd8d60cfe99c2b3ed41a21f2ef58f24fb
 
 ## Table Grain
 
 | Table | Grain |
 |---|---|
 | `dim_Employee` | One row per employee |
-<<<<<<< HEAD
 | `fact_PerformanceRating` | One row per employee performance review |
 | `dim_EducationLevel` | One row per education level |
 | `dim_RatingLevel` | One row per rating level |
@@ -179,4 +175,3 @@ Examples:
 - Performance ratings are fact records because they are repeated employee review events.
 - Date logic must distinguish between `HireDate` and `ReviewDate`.
 - Inactive relationships are useful when multiple business dates exist in the model.
->>>>>>> a3a6b12dd8d60cfe99c2b3ed41a21f2ef58f24fb

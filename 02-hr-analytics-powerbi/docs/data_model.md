@@ -29,7 +29,7 @@ A separate `_Measure` table stores DAX measures.
 | `dim_SatisfiedLevel` | Dimension | Lookup table for satisfaction score labels. |
 | `Dim_Date` | Dimension | Date table used for hire-year and review-year analysis. |
 | `_Measure` | Measure table | Stores report-level DAX measures. |
-=======
+
 # Data Model Documentation
 
 ## Model Approach
@@ -143,7 +143,7 @@ Important fields include:
 - Attrition patterns show association, not causation.
 - Salary analysis should be interpreted carefully because salary can be affected by role, department, tenure, location, and performance.
 - Some review-date and hire-date combinations required validation logic to avoid misleading performance timelines.
-=======
+
 | `fact_PerformanceRating` | Multiple rows per employee, one row per performance review |
 | `dim_EducationLevel` | One row per education level |
 | `dim_RatingLevel` | One row per rating level |

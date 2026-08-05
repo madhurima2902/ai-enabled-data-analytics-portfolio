@@ -376,31 +376,31 @@ SELECT
     cust.customer_segment,
     COUNT(DISTINCT ft.customer_id) AS distinct_customer_count,
     COUNT(DISTINCT ft.transaction_id) AS total_transaction_count,
-    COUNT(CASE WHEN ft.transaction_status = 'Failed' THEN ft.transaction_id END) AS failed_transaction_count,
-    COUNT(CASE WHEN ft.transaction_status = 'Reversed' THEN ft.transaction_id END) AS reversed_transaction_count,
-    ROUND(100.0 * COUNT(CASE WHEN ft.transaction_status = 'Failed' THEN ft.transaction_id END) / NULLIF(COUNT(DISTINCT ft.transaction_id), 0), 2) AS transaction_failure_rate_pct,
-    ROUND(100.0 * COUNT(CASE WHEN ft.transaction_status = 'Reversed' THEN ft.transaction_id END) / NULLIF(COUNT(DISTINCT ft.transaction_id), 0), 2) AS transaction_reversal_rate_pct,
+    COUNT(DISTINCT CASE WHEN ft.transaction_status = 'Failed' THEN ft.transaction_id END) AS failed_transaction_count,
+    COUNT(DISTINCT CASE WHEN ft.transaction_status = 'Reversed' THEN ft.transaction_id END) AS reversed_transaction_count,
+    ROUND(100.0 * COUNT(DISTINCT CASE WHEN ft.transaction_status = 'Failed' THEN ft.transaction_id END) / NULLIF(COUNT(DISTINCT ft.transaction_id), 0), 2) AS transaction_failure_rate_pct,
+    ROUND(100.0 * COUNT(DISTINCT CASE WHEN ft.transaction_status = 'Reversed' THEN ft.transaction_id END) / NULLIF(COUNT(DISTINCT ft.transaction_id), 0), 2) AS transaction_reversal_rate_pct,
     SUM(ft.amount) AS total_transaction_amount,
     SUM(CASE WHEN ft.transaction_status = 'Failed' THEN ft.amount ELSE 0 END) AS failed_transaction_amount,
     SUM(CASE WHEN ft.transaction_status = 'Reversed' THEN ft.amount ELSE 0 END) AS reversed_transaction_amount,
     ROUND(
         100.0 *
-        COUNT(CASE 
-            WHEN ft.transaction_status = 'Failed'
-            THEN 1
-        END)
-        /
-        NULLIF(
-            SUM(
-                COUNT(CASE
-                    WHEN ft.transaction_status = 'Failed'
-                    THEN 1
-                END)
-            ) OVER (),
-            0
-        ),
-        2
-    ) AS share_of_mobile_banking_failures_pct
+        COUNT(DISTINCT CASE
+        WHEN ft.transaction_status = 'Failed'
+        THEN ft.transaction_id
+    END)
+    /
+    NULLIF(
+        SUM(
+            COUNT(DISTINCT CASE
+                WHEN ft.transaction_status = 'Failed'
+                THEN ft.transaction_id
+            END)
+        ) OVER (),
+        0
+    ),
+    2
+) AS share_of_mobile_banking_failures_pct
 FROM warehouse.fact_transactions ft
 JOIN warehouse.dim_channel dc
     ON ft.channel_id = dc.channel_id
@@ -872,7 +872,17 @@ complaint_summary AS (
                 END
             ),
             2
-        ) AS average_resolution_days
+        ) AS average_resolution_days,
+        ROUND(
+            100.0 *
+            COUNT(DISTINCT CASE
+                WHEN fc.is_resolved = TRUE
+                THEN fc.complaint_id
+            END)
+            /
+            NULLIF(COUNT(DISTINCT fc.complaint_id), 0),
+        2
+        ) AS complaint_resolution_rate_pct
     FROM warehouse.fact_complaints fc
     JOIN warehouse.dim_channel dc
         ON fc.channel_id = dc.channel_id
@@ -943,6 +953,8 @@ focus_scorecard AS (
             AS total_sla_ticket_count,
         COALESCE(ss.sla_breached_ticket_count, 0)
             AS sla_breached_ticket_count,
+        COALESCE(cs.complaint_resolution_rate_pct, 0)
+            AS complaint_resolution_rate_pct,
         COALESCE(ss.sla_breach_rate_pct, 0)
             AS sla_breach_rate_pct
     FROM transaction_summary ts
@@ -986,6 +998,7 @@ SELECT
         2
     ) AS complaints_per_1000_transactions,
     resolved_complaint_count,
+    complaint_resolution_rate_pct,
     average_resolution_days,
     total_sla_ticket_count,
     sla_breached_ticket_count,
@@ -996,4 +1009,3 @@ ORDER BY
     affected_transaction_amount DESC,
     total_complaint_count DESC,
     total_transaction_count DESC;
-

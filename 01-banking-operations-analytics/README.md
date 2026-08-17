@@ -10,18 +10,62 @@ The goal is to analyze customer activity, transaction performance, product usage
 
 - Python-generated banking source data
 - PostgreSQL raw, staging, and warehouse layers
-- SQL data quality checks
+- SQL data quality checks and exception handling
 - Fact and dimension warehouse modeling
 - Business KPI queries
 - Power BI dashboard
 - Business KPI documentation
+- Jan-Jun 2026 operational scenario data for agent and interview demonstrations
 
-## Planned Enhancements
+## Current V2 Data Scope
 
-- Incremental loading simulation for future monthly data batches such as February and March
-- Power BI refresh workflow practice using updated warehouse data
-- Connector/API-based data ingestion practice
-- Additional campaign and customer behavior analysis
+The current demo dataset covers January through June 2026.
+
+- Raw transaction rows: 188,015
+- Unique transactions: 188,000
+- Complaints: 7,500
+- Campaign interactions: 16,400
+- SLA tickets: 11,200
+- Customers: 10,000
+- Accounts: 15,000
+
+The additional 15 raw transaction rows are intentional duplicates used for data-quality testing.
+
+## Designed Analytical Signals
+
+The six-month dataset contains controlled business patterns for investigation:
+
+- January: operational baseline
+- February: Mobile Banking transaction failure incident
+- March: partial recovery
+- April: complaint-volume and resolution backlog
+- May: Digital Banking Support SLA deterioration
+- June: stronger campaign engagement with weaker conversion
+
+## Data Quality and Trusted Reporting Flow
+
+The project intentionally keeps a small number of raw-layer exceptions so data-quality handling can be demonstrated rather than hidden.
+
+Current controlled transaction exceptions include:
+
+- 15 duplicate transaction rows
+- 40 failed transactions with non-zero fees
+- 20 missing `channel_id` values
+- 309 high-value transactions flagged for review
+
+The implemented flow is:
+
+`raw source data -> DQ detection / exception capture -> cleaned staging -> warehouse -> reporting / agent tools`
+
+Raw exceptions remain available for audit and agent investigation. Duplicate transactions are removed before the trusted warehouse, failed-with-fee values are corrected in the trusted staging layer, missing channel IDs are not invented, and legitimate high-value transactions remain in reporting data.
+
+Final transaction reconciliation:
+
+- Raw rows: 188,015
+- Unique transaction IDs: 188,000
+- Clean staging rows: 188,000
+- Warehouse rows: 188,000
+- Warehouse date coverage: 2026-01-01 through 2026-06-30
 
 ## Data Areas
 
@@ -35,9 +79,17 @@ The goal is to analyze customer activity, transaction performance, product usage
 - Campaigns
 - SLA Tickets
 
-## Status
+## Current Status
 
-Power BI dashboard v1 complete. Incremental loading and refresh simulation planned for the next iteration.
+Power BI dashboard V1 is complete.
+
+The Jan-Jun 2026 V2 data layer, controlled DQ scenarios, staging cleanup, DQ exception capture, and warehouse refresh have been completed and validated successfully.
+
+The next implementation phase is the practical Banking Operations Agent V2. The agent will use controlled retrieval for business definitions and API/database tools for live operational metrics and transaction or DQ investigation rather than sending the full dataset to an LLM.
+
+## Earlier Incremental-Load Design
+
+A February-March incremental-load design exercise was completed before the scope changed to a six-month agent demo. That design is retained in `docs/v2_february_march_incremental_load_design.md` as an architecture exercise. For the interview-demo implementation, a controlled Jan-Jun full refresh was chosen to keep the data layer simple and spend more time on agent architecture, retrieval, API tools, validation, and observability.
 
 ## Power BI Dashboard
 

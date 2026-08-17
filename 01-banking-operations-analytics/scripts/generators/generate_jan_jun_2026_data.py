@@ -183,7 +183,12 @@ def generate_sla_tickets(complaints: pd.DataFrame) -> pd.DataFrame:
             resolved, met = None, None
             if ticket_status in {"Resolved", "Closed"}:
                 if month == 5 and team == "Digital Banking Support":
-                    resolution_hours = int(rng.integers(max(1, target), int(target * 2.4) + 2))
+                    # Serious but believable May incident: roughly half of resolved tickets breach SLA,
+                    # rather than making almost every ticket fail.
+                    if rng.random() < 0.48:
+                        resolution_hours = int(rng.integers(target + 1, int(target * 2.0) + 2))
+                    else:
+                        resolution_hours = int(rng.integers(1, target + 1))
                 else:
                     resolution_hours = int(rng.integers(1, int(target * 1.5) + 2))
                 resolved = created + timedelta(hours=resolution_hours)

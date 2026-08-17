@@ -1,5 +1,9 @@
 # Banking Operations Analytics V2 — February–March Incremental Load Design
 
+> **Status — Superseded for the interview-demo implementation**
+>
+> This document is retained as the earlier incremental-load design exercise. After the scope changed from a February–March pipeline exercise to a six-month Agent V2 demo, the implemented dataset was expanded to January–June 2026 using a controlled full-refresh workflow. The current implementation keeps raw DQ exceptions for audit, cleans/deduplicates the trusted staging layer, and rebuilds the warehouse for Jan–Jun. The incremental design below remains useful as an architecture and interview discussion artifact, but it is not the current execution path.
+
 ## 1. Purpose
 
 This document records the Phase 1 audit of the existing January pipeline and the Phase 2 design for adding February and March 2026 data through a true incremental-load workflow.
@@ -381,13 +385,13 @@ Completed:
 - identified why the current source data is almost completely clean;
 - defined monthly schema, ID, scenario, data-quality, incremental-load and reconciliation rules.
 
-Not yet implemented:
+Not yet implemented in this archived incremental-design path:
 
-- February and March generators;
-- defect injection code;
+- February and March monthly incremental generators;
+- defect injection code for the monthly incremental workflow;
 - incremental loader;
-- reject/quarantine tables;
-- database execution and row-count validation;
-- January–March analysis.
+- reject/quarantine tables for batch processing;
+- incremental database execution and row-count validation;
+- January–March incremental analysis.
 
-These items belong to Phase 3 onward.
+These items were intentionally not continued after the implementation scope changed to the Jan–Jun full-refresh Agent V2 demo.

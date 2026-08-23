@@ -29,10 +29,10 @@ class InvestigationResponse(BaseModel):
     answer: str
     validation_status: str | None = None
     evidence_status: str | None = None
-    knowledge_sources: list[dict[str, Any]] = []
+    knowledge_sources: list[dict[str, Any]] = Field(default_factory=list)
     tool_name: str | None = None
-    tool_result: dict[str, Any] = {}
-    trace: list[str] = []
+    tool_result: dict[str, Any] = Field(default_factory=dict)
+    trace: list[str] = Field(default_factory=list)
 
 
 @app.get("/health")

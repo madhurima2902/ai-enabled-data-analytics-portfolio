@@ -54,6 +54,10 @@ def classify_question(question: str) -> dict[str, Any]:
         "dq issues",
         "full validation",
         "run all checks",
+        "data cleaning",
+        "cleaning validation",
+        "validate cleaning",
+        "review the cleaning",
     ]):
         return {"intent": "full_validation", "checks_requested": ALL_CHECKS}
 
@@ -134,14 +138,9 @@ def validation_node(state: DQAgentState) -> DQAgentState:
         validation_status = "FAILED"
         evidence_status = "INSUFFICIENT"
     else:
-        if payload.get("check") == "warehouse_readiness":
-            statuses = [
-                item["status"] for item in payload.get("results", {}).values()
-            ]
-        else:
-            statuses = [
-                item["status"] for item in payload.get("results", {}).values()
-            ]
+        statuses = [
+            item["status"] for item in payload.get("results", {}).values()
+        ]
 
         if "FAIL" in statuses:
             validation_status = "FAILED"
@@ -185,8 +184,8 @@ def fallback_node(state: DQAgentState) -> DQAgentState:
         "evidence_status": "INSUFFICIENT",
         "final_answer": (
             "I do not have an approved data-quality route for this request. Ask about transaction-load "
-            "validation, row reconciliation, duplicates, failed transaction fees, missing channels, "
-            "high-value transactions, or warehouse readiness."
+            "validation, cleaning-rule validation, row reconciliation, duplicates, failed transaction fees, "
+            "missing channels, high-value transactions, or warehouse readiness."
         ),
         "trace": _trace(state, "[ABSTAIN] unsupported or underspecified DQ request"),
     }
@@ -204,6 +203,19 @@ def _summary_lines(payload: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _rule_lines(payload: dict[str, Any]) -> list[str]:
+    lines: list[str] = []
+    for name, result in payload.get("results", {}).items():
+        rule = result.get("rule")
+        recommendation = result.get("recommendation")
+        if rule:
+            text = f"- {name}: {rule}"
+            if recommendation:
+                text += f" Recommended handling: {recommendation}"
+            lines.append(text)
+    return lines
+
+
 def deterministic_synthesis(state: DQAgentState) -> str:
     if state.get("evidence_status") == "INSUFFICIENT":
         error = state.get("check_results", {}).get("error")
@@ -214,6 +226,7 @@ def deterministic_synthesis(state: DQAgentState) -> str:
 
     payload = state.get("check_results", {})
     lines = _summary_lines(payload)
+    rule_lines = _rule_lines(payload)
     rules = state.get("retrieved_rules", [])
     sources = sorted({rule["source"] for rule in rules})
 
@@ -226,6 +239,8 @@ def deterministic_synthesis(state: DQAgentState) -> str:
     answer_parts = [headline]
     if lines:
         answer_parts.append("Evidence:\n" + "\n".join(lines))
+    if rule_lines:
+        answer_parts.append("Approved cleaning/validation handling:\n" + "\n".join(rule_lines))
 
     review_items = payload.get("review_items", [])
     if review_items:
@@ -239,7 +254,7 @@ def deterministic_synthesis(state: DQAgentState) -> str:
         answer_parts.append("Approved rule sources: " + ", ".join(sources) + ".")
 
     answer_parts.append(
-        "The agent does not auto-delete, impute, or update records; remediation remains a separate controlled step."
+        "The agent can recommend the approved cleaning action, but it does not auto-delete, impute, or update records; remediation remains a separate controlled pipeline or approval step."
     )
     return "\n\n".join(answer_parts)
 

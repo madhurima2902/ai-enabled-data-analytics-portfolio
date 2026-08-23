@@ -24,6 +24,7 @@ class InvestigationRequest(BaseModel):
 
 
 class InvestigationResponse(BaseModel):
+    run_id: str | None = None
     question: str
     intent: str
     answer: str
@@ -54,6 +55,7 @@ def investigate(request: InvestigationRequest) -> InvestigationResponse:
     ]
 
     return InvestigationResponse(
+        run_id=state.get("run_id"),
         question=request.question,
         intent=state.get("intent", "unknown"),
         answer=state.get("final_answer", "No answer returned."),

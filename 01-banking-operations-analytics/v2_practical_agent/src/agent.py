@@ -3,6 +3,7 @@ import calendar
 import json
 import os
 import re
+import uuid
 from typing import Any
 
 from langgraph.graph import END, START, StateGraph
@@ -298,7 +299,15 @@ def tool_node(state: AgentState) -> AgentState:
 def validation_node(state: AgentState) -> AgentState:
     result = state.get("tool_result", {})
 
-    if result.get("error"):
+    if state.get("intent") == "knowledge_question":
+        context = state.get("retrieved_context", [])
+        if context:
+            evidence_status = "SUFFICIENT"
+            validation_status = "PASSED"
+        else:
+            evidence_status = "INSUFFICIENT"
+            validation_status = "ABSTAINED: no approved chunk retrieved"
+    elif result.get("error"):
         evidence_status = "INSUFFICIENT"
         validation_status = f"FAILED: {result['error']}"
     elif state.get("tool_name") == "get_kpi_metric":
@@ -542,7 +551,7 @@ def route_after_classify(state: AgentState) -> str:
 
 def route_after_retrieve(state: AgentState) -> str:
     if state.get("intent") == "knowledge_question":
-        return "synthesize"
+        return "validate"
     return "tool"
 
 
@@ -571,7 +580,7 @@ def build_graph():
     builder.add_conditional_edges(
         "retrieve",
         route_after_retrieve,
-        {"synthesize": "synthesize", "tool": "tool"},
+        {"validate": "validate", "tool": "tool"},
     )
     builder.add_edge("tool", "validate")
     builder.add_edge("validate", "synthesize")
@@ -586,7 +595,12 @@ GRAPH = build_graph()
 
 
 def run_agent(question: str) -> AgentState:
-    initial: AgentState = {"question": question, "trace": ["[START] request received"]}
+    run_id = str(uuid.uuid4())
+    initial: AgentState = {
+        "run_id": run_id,
+        "question": question,
+        "trace": [f"[START] request received run_id={run_id}"],
+    }
     return GRAPH.invoke(initial)
 
 
@@ -598,6 +612,8 @@ def main() -> None:
 
     question = " ".join(args.question)
     result = run_agent(question)
+
+    print(f"\n=== RUN ID ===\n{result.get('run_id')}")
 
     print("\n=== TRACE ===")
     for event in result.get("trace", []):

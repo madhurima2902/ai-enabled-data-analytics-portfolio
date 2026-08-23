@@ -9,14 +9,27 @@ except ImportError:  # Allows: python src/retriever.py
 STOP_WORDS = {
     "what", "is", "the", "a", "an", "of", "to", "in", "for", "and",
     "how", "do", "we", "was", "were", "did", "does", "during", "selected",
+    "where",
 }
 
 
 def normalize_text(text: str) -> list[str]:
-    """Simple transparent tokenizer used by the lexical demo retriever."""
+    """Simple transparent tokenizer used by the lexical demo retriever.
 
-    words = re.findall(r"[a-z0-9_]+", text.lower())
-    return [word for word in words if word not in STOP_WORDS]
+    Underscored identifiers also contribute their component words, so
+    `channel_id` can match a section such as `warehouse.dim_channel` while the
+    original identifier token is still retained for exact matching.
+    """
+
+    raw_words = re.findall(r"[a-z0-9_]+", text.lower())
+    expanded: list[str] = []
+
+    for word in raw_words:
+        expanded.append(word)
+        if "_" in word:
+            expanded.extend(part for part in word.split("_") if part)
+
+    return [word for word in expanded if word not in STOP_WORDS]
 
 
 def detect_knowledge_scope(question: str) -> list[str]:
@@ -43,7 +56,7 @@ def detect_knowledge_scope(question: str) -> list[str]:
 
 
 def score_chunk(question: str, chunk: dict[str, str]) -> int:
-    """Score lexical overlap, with a small bonus for matching the section title."""
+    """Score lexical overlap, with a title bonus for more precise sections."""
 
     question_words = set(normalize_text(question))
     content_words = set(normalize_text(chunk["content"]))

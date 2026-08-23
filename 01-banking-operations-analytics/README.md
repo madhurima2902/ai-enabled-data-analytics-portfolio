@@ -1,6 +1,6 @@
 # Banking Operations Analytics
 
-This project simulates a retail banking analytics environment using Python-generated operational data, PostgreSQL, SQL transformations, data quality checks, warehouse modeling, and Power BI reporting.
+This project simulates a retail banking analytics environment using Python-generated operational data, PostgreSQL, SQL transformations, data quality checks, warehouse modeling, Power BI reporting, and a bounded Agentic AI investigation layer.
 
 ## Business Objective
 
@@ -16,6 +16,7 @@ The goal is to analyze customer activity, transaction performance, product usage
 - Power BI dashboard
 - Business KPI documentation
 - Jan-Jun 2026 operational scenario data for agent and interview demonstrations
+- Banking Operations Agent V2 using LangGraph, governed Markdown retrieval, controlled PostgreSQL tools, validation, and a FastAPI demo interface
 
 ## Current V2 Data Scope
 
@@ -85,7 +86,25 @@ Power BI dashboard V1 is complete.
 
 The Jan-Jun 2026 V2 data layer, controlled DQ scenarios, staging cleanup, DQ exception capture, and warehouse refresh have been completed and validated successfully.
 
-The next implementation phase is the practical Banking Operations Agent V2. The agent will use controlled retrieval for business definitions and API/database tools for live operational metrics and transaction or DQ investigation rather than sending the full dataset to an LLM.
+Banking Operations Agent V2 is implemented under `v2_practical_agent/` for interview and portfolio demonstration. The bounded workflow uses LangGraph state/routing, scoped Markdown RAG, controlled parameterized PostgreSQL tools, deterministic read-only SQL validation, evidence validation, trace output, a golden evaluation suite, and a FastAPI/Swagger interface. Optional Claude synthesis can be enabled locally, while deterministic synthesis keeps the demo runnable without an LLM API key.
+
+Production extensions such as vector embeddings, enterprise RBAC, durable checkpointing, MCP, production tracing infrastructure, and write-action HITL are intentionally documented as future design rather than represented as completed prototype features.
+
+## Banking Operations Agent V2
+
+The agent is designed for questions such as:
+
+- What is Transaction Failure Rate?
+- What was Mobile Banking failure rate in March 2026?
+- Compare February and March Mobile Banking failure rate.
+- Was March concerning for transaction failures in Mobile Banking?
+- Show the data-quality exception summary.
+
+The workflow separates relatively stable business knowledge from dynamic operational evidence:
+
+`User -> LangGraph route -> RAG and/or PostgreSQL tool -> validation -> evidence-backed synthesis -> answer + source + period + trace`
+
+See `v2_practical_agent/README.md` for setup, evaluation, exact demo commands, implementation boundaries, and FastAPI demo steps.
 
 ## Earlier Incremental-Load Design
 

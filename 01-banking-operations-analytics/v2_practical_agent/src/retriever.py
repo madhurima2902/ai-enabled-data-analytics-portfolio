@@ -1,112 +1,103 @@
-import string
+import re
 
-from knowledge_loader import load_knowledge_files, split_into_sections
-
-def normalize_text(text):
-    text = text.lower()
-    text = text.translate(str.maketrans("", "", string.punctuation))
-    words = text.split()
-
-    stop_words = {
-        "what", "is", "the", "a", "an",
-        "of", "to", "in", "for", "and"
-    }
-
-    return [
-        word for word in words if word not in stop_words    
-    ]
-
-def detect_knowledge_scope(question):
-    question = question.lower()
-
-    if "what is" in question or "definition" in question or "mean" in question:
-        return "kpi_definitions.md"
-
-    if "table" in question or "column" in question or "field" in question or "where" in question:
-        return "data_dictionary.md"
-
-    if "rule" in question or "handle" in question or "handling" in question:
-        return "business_rules.md"
-
-    return None
+try:
+    from .knowledge_loader import load_all_chunks
+except ImportError:  # Allows: python src/retriever.py
+    from knowledge_loader import load_all_chunks
 
 
-def score_chunk(question, chunk_text):
+STOP_WORDS = {
+    "what", "is", "the", "a", "an", "of", "to", "in", "for", "and",
+    "how", "do", "we", "was", "were", "did", "does", "during", "selected",
+}
+
+
+def normalize_text(text: str) -> list[str]:
+    """Simple transparent tokenizer used by the lexical demo retriever."""
+
+    words = re.findall(r"[a-z0-9_]+", text.lower())
+    return [word for word in words if word not in STOP_WORDS]
+
+
+def detect_knowledge_scope(question: str) -> list[str]:
+    """Narrow retrieval to the most relevant approved knowledge areas."""
+
+    q = question.lower()
+
+    if any(term in q for term in ["table", "column", "field", "schema", "where is", "stored"]):
+        return ["data_dictionary.md"]
+
+    if any(term in q for term in [
+        "duplicate", "missing channel", "failed transaction with fee", "high-value",
+        "high value", "data quality", "dq", "business rule", "handling rule",
+    ]):
+        return ["business_rules.md"]
+
+    if any(term in q for term in ["why", "concerning", "investigate", "root cause", "interpret"]):
+        return ["kpi_definitions.md", "business_rules.md", "investigation_playbook.md"]
+
+    if any(term in q for term in ["what is", "definition", "define", "mean", "formula", "numerator", "denominator"]):
+        return ["kpi_definitions.md"]
+
+    return []
+
+
+def score_chunk(question: str, chunk: dict[str, str]) -> int:
+    """Score lexical overlap, with a small bonus for matching the section title."""
+
     question_words = set(normalize_text(question))
-    chunk_words = set(normalize_text(chunk_text))
+    content_words = set(normalize_text(chunk["content"]))
+    title_words = set(normalize_text(chunk.get("section", "")))
 
-    matching_words = question_words.intersection(chunk_words)
-    return len(matching_words)
+    overlap = len(question_words.intersection(content_words))
+    title_overlap = len(question_words.intersection(title_words))
 
-def retrieve_chunks(question,top_k = 3):
-    documents = load_knowledge_files()
-    scope = detect_knowledge_scope(question)
-    chunks = []
+    return overlap + (2 * title_overlap)
 
-    for document in documents:
-        if scope and document["source"] != scope:
+
+def retrieve_chunks(
+    question: str,
+    top_k: int = 3,
+    scopes: list[str] | None = None,
+) -> list[dict[str, object]]:
+    """Return top lexical chunks with explainable source/section/score metadata."""
+
+    allowed_scopes = scopes if scopes is not None else detect_knowledge_scope(question)
+    results: list[dict[str, object]] = []
+
+    for chunk in load_all_chunks():
+        if allowed_scopes and chunk["source"] not in allowed_scopes:
             continue
-        document_chunks = split_into_sections(document)
-        chunks.extend(document_chunks)
 
-    results = []
+        score = score_chunk(question, chunk)
+        if score <= 0:
+            continue
 
-    for chunk in chunks:
-        score = score_chunk(question, chunk['content'])
-        if score > 0:
-            results.append(
-                {
-                    "source": chunk['source'],
-                    "content": chunk['content'],
-                    "score": score
-                }
-            )
-        results.sort(
-                key = lambda result: result['score'],
-                reverse=True
+        results.append(
+            {
+                "source": chunk["source"],
+                "section": chunk["section"],
+                "content": chunk["content"],
+                "score": score,
+            }
         )
+
+    results.sort(key=lambda result: int(result["score"]), reverse=True)
     return results[:top_k]
 
-#if __name__ == "__main__":
-    question = "What is Transaction Failure Rate?"
-    words = normalize_text(question)
-
-    print(words)
-
-#if __name__ == "__main__":
-#    question = "What is Transaction Failure Rate?"
-
-#    chunk_text = """
-#    Transaction Failure Rate measures the percentage of total
-#    transactions that failed during the selected time period.
- #   """
-
-#    score = score_chunk(question, chunk_text)
-
-#    print(f"Score: {score}")
 
 if __name__ == "__main__":
-
     questions = [
         "What is Transaction Failure Rate?",
         "Where is channel_id stored?",
-        "How do we handle duplicate transactions?"
+        "How do we handle duplicate transactions?",
     ]
 
     for question in questions:
-        print("\nQUESTION:", question)
-
-        scope = detect_knowledge_scope(question)
-        print("Detected scope:", scope)
-
-        results = retrieve_chunks(question)
-
-        for result in results:
+        print(f"\nQUESTION: {question}")
+        print("Scope:", detect_knowledge_scope(question) or "all approved knowledge")
+        for result in retrieve_chunks(question):
             print(
-                "Source:",
-                result["source"],
-                "| Score:",
-                result["score"]
+                f"{result['source']} -> {result['section']} "
+                f"| score={result['score']}"
             )
-            print("Content:", result["content"][:120])
-            print("-" * 50)

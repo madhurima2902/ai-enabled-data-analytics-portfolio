@@ -8,6 +8,7 @@ class AgentState(TypedDict, total=False):
     validation, and synthesis can be inspected independently during a demo.
     """
 
+    run_id: str
     question: str
     intent: str
     knowledge_scope: list[str]

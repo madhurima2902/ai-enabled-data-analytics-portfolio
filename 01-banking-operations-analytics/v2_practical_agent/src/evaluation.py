@@ -3,11 +3,11 @@ import sys
 from typing import Callable
 
 try:
-    from .agent import classify_question
+    from .agent import classify_question, run_agent
     from .db_tools import get_dq_summary, get_kpi_metric, validate_readonly_sql
     from .retriever import retrieve_chunks
 except ImportError:
-    from agent import classify_question
+    from agent import classify_question, run_agent
     from db_tools import get_dq_summary, get_kpi_metric, validate_readonly_sql
     from retriever import retrieve_chunks
 
@@ -88,6 +88,48 @@ def check_sql_guard() -> None:
     assert bad_update is False, "UPDATE should be blocked"
 
 
+def check_run_id() -> None:
+    first = run_agent("What is Transaction Failure Rate?")
+    second = run_agent("What is Transaction Failure Rate?")
+
+    assert first.get("run_id"), "run_id was not set on the agent state"
+    assert isinstance(first["run_id"], str) and first["run_id"], (
+        "run_id must be a non-empty string"
+    )
+    assert first["run_id"] != second["run_id"], (
+        "each agent run must receive a unique run_id"
+    )
+    assert any(f"run_id={first['run_id']}" in event for event in first.get("trace", [])), (
+        "run_id should be traceable in the run's trace events"
+    )
+
+
+def check_knowledge_route_validation() -> None:
+    # An approved chunk exists: validation must be explicit, not left empty.
+    found = run_agent("What is Transaction Failure Rate?")
+    assert found.get("validation_status") == "PASSED", (
+        f"expected PASSED when an approved chunk is retrieved, got {found.get('validation_status')!r}"
+    )
+    assert found.get("evidence_status") == "SUFFICIENT", (
+        f"expected SUFFICIENT evidence when an approved chunk is retrieved, got {found.get('evidence_status')!r}"
+    )
+
+    # No approved chunk matches: the agent must abstain rather than invent an answer.
+    missing = run_agent("What does the flurbnaxion ratio mean for zzqqxx metric?")
+    assert missing.get("intent") == "knowledge_question", (
+        f"expected a knowledge_question route for this case, got {missing.get('intent')!r}"
+    )
+    assert not missing.get("retrieved_context"), (
+        "test question was expected to retrieve no approved chunk"
+    )
+    assert missing.get("evidence_status") == "INSUFFICIENT", (
+        f"expected INSUFFICIENT evidence when no approved chunk matches, got {missing.get('evidence_status')!r}"
+    )
+    assert "could not find" in missing.get("final_answer", "").lower(), (
+        "agent should abstain rather than invent a definition when no approved chunk is found"
+    )
+
+
 def check_database_controls() -> None:
     feb = get_kpi_metric(
         "transaction_failure_rate",
@@ -131,6 +173,8 @@ def main() -> None:
         run_check("routing golden cases", check_routing),
         run_check("RAG retrieval golden cases", check_retrieval),
         run_check("read-only SQL guard", check_sql_guard),
+        run_check("run_id request correlation", check_run_id),
+        run_check("knowledge-route evidence validation", check_knowledge_route_validation),
     ]
 
     try:

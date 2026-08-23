@@ -123,8 +123,10 @@ Expected groups:
 PASS | routing golden cases
 PASS | RAG retrieval golden cases
 PASS | read-only SQL guard
+PASS | run_id request correlation
+PASS | knowledge-route evidence validation
 PASS | PostgreSQL reconciliation controls
-Passed 4/4 evaluation groups
+Passed 6/6 evaluation groups
 ```
 
 The database reconciliation confirms the established synthetic-data demo signals, including approximately:

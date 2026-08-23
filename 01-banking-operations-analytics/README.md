@@ -1,10 +1,10 @@
 # Banking Operations Analytics
 
-This project simulates a retail banking analytics environment using Python-generated operational data, PostgreSQL, SQL transformations, data quality checks, warehouse modeling, Power BI reporting, and a bounded Agentic AI investigation layer.
+This project simulates a retail banking analytics environment using Python-generated operational data, PostgreSQL, SQL transformations, data quality checks, warehouse modeling, Power BI reporting, and bounded Agentic AI workflows.
 
 ## Business Objective
 
-The goal is to analyze customer activity, transaction performance, product usage, complaint trends, campaign effectiveness, and operational risk for a retail banking business.
+The goal is to analyze customer activity, transaction performance, product usage, complaint trends, campaign effectiveness, operational risk, and trusted-data readiness for a retail banking business.
 
 ## Core Components
 
@@ -16,7 +16,9 @@ The goal is to analyze customer activity, transaction performance, product usage
 - Power BI dashboard
 - Business KPI documentation
 - Jan-Jun 2026 operational scenario data for agent and interview demonstrations
-- Banking Operations Agent V2 using LangGraph, governed Markdown retrieval, controlled PostgreSQL tools, validation, and a FastAPI demo interface
+- Banking Operations Agent V2 for business investigation
+- Banking Data Quality & Validation Agent for trusted-data readiness
+- Project-level `CLAUDE.md` so both agents can be reviewed and evolved consistently through Claude Code
 
 ## Current V2 Data Scope
 
@@ -56,7 +58,7 @@ Current controlled transaction exceptions include:
 
 The implemented flow is:
 
-`raw source data -> DQ detection / exception capture -> cleaned staging -> warehouse -> reporting / agent tools`
+`raw source data -> DQ detection / exception capture -> cleaned staging -> warehouse -> Power BI / agent tools`
 
 Raw exceptions remain available for audit and agent investigation. Duplicate transactions are removed before the trusted warehouse, failed-with-fee values are corrected in the trusted staging layer, missing channel IDs are not invented, and legitimate high-value transactions remain in reporting data.
 
@@ -86,29 +88,99 @@ Power BI dashboard V1 is complete.
 
 The Jan-Jun 2026 V2 data layer, controlled DQ scenarios, staging cleanup, DQ exception capture, and warehouse refresh have been completed and validated successfully.
 
-Banking Operations Agent V2 is implemented under `v2_practical_agent/` for interview and portfolio demonstration. The bounded workflow uses LangGraph state/routing, scoped Markdown RAG, controlled parameterized PostgreSQL tools, deterministic read-only SQL validation, evidence validation, trace output, a golden evaluation suite, and a FastAPI/Swagger interface. Optional Claude synthesis can be enabled locally, while deterministic synthesis keeps the demo runnable without an LLM API key.
+Two bounded agent workflows are now implemented on top of the same governed data model and rules.
 
-Production extensions such as vector embeddings, enterprise RBAC, durable checkpointing, MCP, production tracing infrastructure, and write-action HITL are intentionally documented as future design rather than represented as completed prototype features.
+## Agent 1 — Banking Operations Agent V2
 
-## Banking Operations Agent V2
+Location: `v2_practical_agent/`
 
-The agent is designed for questions such as:
+Purpose: answer business-investigation questions after trusted data is available.
+
+Implemented capabilities include:
+
+- LangGraph state and conditional routing
+- scoped Markdown RAG for KPI/business context
+- controlled parameterized PostgreSQL tools
+- KPI retrieval and period comparison
+- transaction lookup and DQ summary
+- deterministic read-only SQL validation
+- evidence validation and abstention
+- execution trace
+- golden evaluation suite
+- FastAPI/Swagger demo
+- optional Claude synthesis over validated evidence
+
+Example questions:
 
 - What is Transaction Failure Rate?
 - What was Mobile Banking failure rate in March 2026?
 - Compare February and March Mobile Banking failure rate.
 - Was March concerning for transaction failures in Mobile Banking?
-- Show the data-quality exception summary.
 
-The workflow separates relatively stable business knowledge from dynamic operational evidence:
+Flow:
 
 `User -> LangGraph route -> RAG and/or PostgreSQL tool -> validation -> evidence-backed synthesis -> answer + source + period + trace`
 
-See `v2_practical_agent/README.md` for setup, evaluation, exact demo commands, implementation boundaries, and FastAPI demo steps.
+See `v2_practical_agent/README.md`.
+
+## Agent 2 — Banking Data Quality & Validation Agent
+
+Location: `data_quality_agent/`
+
+Purpose: validate whether the raw/staging/warehouse pipeline is ready for trusted KPI reporting.
+
+Implemented capabilities include:
+
+- LangGraph routing to approved DQ checks
+- shared governed DQ rules reused from the Banking Investigation Agent knowledge base
+- raw/staging/warehouse row reconciliation
+- duplicate transaction validation
+- failed-transaction fee validation
+- missing-channel validation
+- high-value transaction review logic
+- overall warehouse-readiness assessment
+- deterministic read-only SQL guard
+- PASS / REVIEW / FAIL evidence handling
+- evaluation suite
+- FastAPI/Swagger demo on a separate port
+- optional Claude synthesis over validated DQ evidence
+
+Example questions:
+
+- Validate the current transaction load.
+- Are there duplicate transaction IDs?
+- Why do raw and warehouse row counts differ?
+- Are any channel IDs missing?
+- Should high-value transactions be removed?
+- Is the warehouse ready for KPI reporting?
+
+Flow:
+
+`User -> LangGraph route -> shared DQ rule -> deterministic PostgreSQL checks -> PASS/REVIEW/FAIL -> evidence-backed readiness answer`
+
+See `data_quality_agent/README.md`.
+
+## Shared rule and Claude Code consistency
+
+Both agents deliberately use one consistent business story:
+
+- stable rules live in approved Markdown/documentation;
+- changing values come from PostgreSQL tools;
+- calculations and validation remain deterministic;
+- agents do not receive unrestricted write authority;
+- Claude may explain validated evidence but should not invent thresholds, root causes, or cleaning rules.
+
+The project-level `CLAUDE.md` defines how Claude Code should understand, modify, test, and review both agents. It also tells Claude Code to reuse the same KPI/DQ sources instead of creating conflicting copies.
+
+The intended engineering story is:
+
+`Claude Code accelerates repository understanding and bounded delivery -> LangGraph orchestrates runtime workflows -> Markdown provides governed knowledge -> PostgreSQL/SQL/Python provide evidence -> deterministic validation controls correctness -> optional Claude synthesis explains the evidence.`
+
+Production extensions such as vector embeddings, enterprise RBAC, durable checkpointing, MCP, centralized observability, scheduled DQ runs, and write-action HITL are documented as future design rather than represented as completed prototype features.
 
 ## Earlier Incremental-Load Design
 
-A February-March incremental-load design exercise was completed before the scope changed to a six-month agent demo. That design is retained in `docs/v2_february_march_incremental_load_design.md` as an architecture exercise. For the interview-demo implementation, a controlled Jan-Jun full refresh was chosen to keep the data layer simple and spend more time on agent architecture, retrieval, API tools, validation, and observability.
+A February-March incremental-load design exercise was completed before the scope changed to a six-month agent demo. That design is retained in `docs/v2_february_march_incremental_load_design.md` as an architecture exercise. For the interview-demo implementation, a controlled Jan-Jun full refresh was chosen to keep the data layer simple and spend more time on agent architecture, retrieval, data-quality validation, API tools, and observability.
 
 ## Power BI Dashboard
 

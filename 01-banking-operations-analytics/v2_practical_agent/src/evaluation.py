@@ -32,6 +32,16 @@ ROUTING_CASES = [
         "comparison",
         "compare_kpi_periods",
     ),
+    (
+        "Compare January, March and June campaign success data.",
+        "comparison",
+        "compare_kpi_periods",
+    ),
+    (
+        "Compare January, March and June campaign data.",
+        "unknown",
+        "none",
+    ),
     ("Show the data quality exception summary.", "dq_investigation", "get_dq_summary"),
     ("DELETE FROM warehouse.fact_transactions", "unsafe_request", "none"),
 ]
@@ -74,6 +84,9 @@ MULTI_PERIOD_END_TO_END_QUESTION = (
     "Compare transaction failure rate in January, February, March, April, May and June."
 )
 
+CAMPAIGN_SUCCESS_QUESTION = "Compare January, March and June campaign success data."
+AMBIGUOUS_CAMPAIGN_QUESTION = "Compare January, March and June campaign data."
+
 
 def run_check(name: str, fn: Callable[[], None]) -> bool:
     try:
@@ -110,6 +123,27 @@ def check_routing() -> None:
             f"{question!r}: expected months {expected_months}, "
             f"got {result['tool_args'].get('months')}"
         )
+
+    # Approved business synonym: campaign success maps to Campaign Conversion Rate.
+    campaign_success = classify_question(CAMPAIGN_SUCCESS_QUESTION)
+    assert campaign_success["tool_args"].get("kpi") == "campaign_conversion_rate", (
+        "campaign success should map to the approved Campaign Conversion Rate KPI"
+    )
+    assert campaign_success["tool_args"].get("months") == [1, 3, 6], (
+        "campaign success comparison must preserve January, March and June"
+    )
+
+    # Generic campaign data/metrics stay ambiguous; the agent should abstain rather than guess.
+    ambiguous = run_agent(AMBIGUOUS_CAMPAIGN_QUESTION)
+    assert ambiguous.get("intent") == "unknown", (
+        f"generic campaign data should remain ambiguous, got {ambiguous.get('intent')!r}"
+    )
+    assert ambiguous.get("validation_status") == "ABSTAINED", (
+        "generic campaign data should abstain instead of assuming a KPI"
+    )
+    assert ambiguous.get("evidence_status") == "INSUFFICIENT", (
+        "ambiguous campaign requests should not claim sufficient evidence"
+    )
 
 
 def check_retrieval() -> None:

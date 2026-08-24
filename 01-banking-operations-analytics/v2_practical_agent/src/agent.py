@@ -14,6 +14,7 @@ except Exception:  # Optional; deterministic synthesis works without an API key.
     Anthropic = None
 
 try:
+    from .aggregate_tools import get_basic_aggregate
     from .db_tools import (
         KPI_LABELS,
         compare_kpi,
@@ -26,6 +27,7 @@ try:
     from .retriever import detect_knowledge_scope, retrieve_chunks
     from .state import AgentState
 except ImportError:  # Allows: python src/agent.py "question"
+    from aggregate_tools import get_basic_aggregate
     from db_tools import (
         KPI_LABELS,
         compare_kpi,
@@ -58,6 +60,23 @@ UNSAFE_TERMS = [
     "create table", "grant ", "revoke ",
 ]
 
+ENTITY_TERMS = {
+    "transactions": ["transaction", "transactions"],
+    "complaints": ["complaint", "complaints"],
+    "campaigns": ["campaign", "campaigns"],
+    "sla_tickets": ["sla ticket", "sla tickets", "ticket", "tickets"],
+    "customers": ["customer", "customers"],
+    "accounts": ["account", "accounts"],
+    "products": ["product", "products"],
+    "branches": ["branch", "branches"],
+    "channels": ["channel", "channels"],
+}
+
+AGGREGATE_CUES = [
+    "how many", "number of", "count", "entries", "entry", "records", "record", "rows", "row",
+    "average", "avg", "mean", "sum", "total",
+]
+
 
 def _trace(state: AgentState, message: str) -> list[str]:
     return list(state.get("trace", [])) + [message]
@@ -72,7 +91,6 @@ def parse_months(question: str) -> list[int]:
         if match:
             found.append((match.start(), number))
 
-    # Keep month order from the question and remove duplicates caused by full/abbr names.
     ordered: list[int] = []
     for _, number in sorted(found):
         if number not in ordered:
@@ -87,7 +105,6 @@ def detect_year(question: str) -> int:
 
 def detect_channel(question: str) -> str | None:
     q = question.lower()
-    # Longer phrases first.
     for phrase in sorted(CHANNELS, key=len, reverse=True):
         if phrase in q:
             return CHANNELS[phrase]
@@ -113,6 +130,95 @@ def detect_kpi(question: str) -> str | None:
         return "transaction_failure_rate"
 
     return None
+
+
+def detect_entity(question: str) -> str | None:
+    q = question.lower()
+    for entity, terms in ENTITY_TERMS.items():
+        if any(re.search(rf"\b{re.escape(term)}\b", q) for term in terms):
+            return entity
+    return None
+
+
+def detect_aggregate_metric(entity: str, question: str) -> str | None:
+    q = question.lower()
+
+    if entity == "transactions":
+        if "fee" in q:
+            return "fee_amount"
+        if "amount" in q or "value" in q:
+            return "amount"
+    elif entity == "complaints":
+        if "resolution" in q and any(term in q for term in ["day", "days", "time"]):
+            return "resolution_days"
+    elif entity == "campaigns":
+        if "converted" in q or "conversion count" in q:
+            return "converted_count"
+        if "engaged" in q or "engagement count" in q:
+            return "engaged_count"
+        if "sent" in q:
+            return "campaign_sent_count"
+    elif entity == "sla_tickets":
+        if "target" in q and "hour" in q:
+            return "sla_target_hours"
+    elif entity == "customers":
+        if "age" in q:
+            return "customer_age"
+    elif entity == "accounts":
+        if "credit limit" in q:
+            return "credit_limit"
+        if "interest" in q:
+            return "interest_rate"
+        if "balance" in q:
+            return "current_balance"
+
+    return None
+
+
+def detect_basic_aggregate_request(question: str) -> dict[str, Any] | None:
+    q = question.lower().strip()
+    if not any(cue in q for cue in AGGREGATE_CUES):
+        return None
+
+    entity = detect_entity(question)
+    if not entity:
+        return {
+            "supported": False,
+            "reason": "No approved aggregate entity matched the request.",
+        }
+
+    months = parse_months(question)
+    year = detect_year(question)
+    metric = detect_aggregate_metric(entity, question)
+    group_by_month = any(term in q for term in ["each month", "per month", "monthly", "by month"])
+
+    if any(term in q for term in ["average", "avg", "mean"]):
+        operation = "average"
+    elif "sum" in q:
+        operation = "sum"
+    elif "total" in q and metric:
+        operation = "sum"
+    else:
+        operation = "count"
+
+    if operation in {"sum", "average"} and not metric:
+        return {
+            "supported": False,
+            "reason": f"{operation} requires an approved numeric measure for {entity}.",
+        }
+
+    if len(months) >= 2:
+        group_by_month = True
+
+    return {
+        "supported": True,
+        "operation": operation,
+        "entity": entity,
+        "metric": metric,
+        "months": sorted(set(months)),
+        "year": year,
+        "group_by_month": group_by_month,
+    }
 
 
 def classify_question(question: str) -> dict[str, Any]:
@@ -154,6 +260,29 @@ def classify_question(question: str) -> dict[str, Any]:
             "tool_args": {},
         }
 
+    aggregate = detect_basic_aggregate_request(question)
+    if aggregate is not None:
+        if not aggregate.get("supported"):
+            return {
+                "intent": "unknown",
+                "knowledge_scope": [],
+                "tool_name": "none",
+                "tool_args": {},
+            }
+        return {
+            "intent": "basic_aggregate",
+            "knowledge_scope": [],
+            "tool_name": "get_basic_aggregate",
+            "tool_args": {
+                "operation": aggregate["operation"],
+                "entity": aggregate["entity"],
+                "metric": aggregate["metric"],
+                "months": aggregate["months"],
+                "year": aggregate["year"],
+                "group_by_month": aggregate["group_by_month"],
+            },
+        }
+
     if kpi and any(term in q for term in ["concerning", "why", "investigate", "root cause", "interpret"]):
         if not months:
             return {
@@ -163,8 +292,6 @@ def classify_question(question: str) -> dict[str, Any]:
                 "tool_args": {},
             }
 
-        # If the user explicitly names multiple periods, preserve all of them for evidence.
-        # This avoids silently collapsing a three-period question into a two-period comparison.
         if len(months) >= 2:
             requested_months = sorted(set(months))
             return {
@@ -183,7 +310,6 @@ def classify_question(question: str) -> dict[str, Any]:
         prior_month = current_month - 1 if current_month > 1 else 12
         prior_year = year if current_month > 1 else year - 1
         if prior_year != year:
-            # The current portfolio data is Jan-Jun 2026; do not silently cross outside it.
             return {
                 "intent": "unknown",
                 "knowledge_scope": scopes,
@@ -313,6 +439,8 @@ def tool_node(state: AgentState) -> AgentState:
             result = compare_kpi(**args)
         elif name == "compare_kpi_periods":
             result = compare_kpi_periods(**args)
+        elif name == "get_basic_aggregate":
+            result = get_basic_aggregate(**args)
         elif name == "get_transaction_details":
             if not args.get("transaction_id"):
                 raise ValueError("A transaction ID is required for transaction lookup.")
@@ -370,6 +498,18 @@ def validation_node(state: AgentState) -> AgentState:
         else:
             evidence_status = "SUFFICIENT"
             validation_status = "PASSED"
+    elif state.get("tool_name") == "get_basic_aggregate":
+        if result.get("grouping") == "month":
+            rows = result.get("rows", [])
+            valid = bool(rows) and all(row.get("value") is not None for row in rows)
+        else:
+            valid = result.get("value") is not None
+        if valid:
+            evidence_status = "SUFFICIENT"
+            validation_status = "PASSED"
+        else:
+            evidence_status = "INSUFFICIENT"
+            validation_status = "FAILED: aggregate query returned no usable value"
     elif state.get("tool_name") == "get_transaction_details":
         evidence_status = "SUFFICIENT" if result.get("found") else "INSUFFICIENT"
         validation_status = "PASSED" if result.get("found") else "FAILED: transaction not found"
@@ -412,7 +552,8 @@ def fallback_node(state: AgentState) -> AgentState:
         "final_answer": (
             "I do not have enough approved routing information to answer this request safely. "
             "Please ask for an approved KPI definition, a Jan-Jun 2026 KPI period/comparison, "
-            "a transaction lookup, or a supported data-quality investigation."
+            "a basic count/sum/average for an approved entity, a transaction lookup, or a supported "
+            "data-quality investigation."
         ),
         "trace": _trace(state, "[ABSTAIN] unsupported or underspecified request"),
     }
@@ -503,6 +644,28 @@ def _format_multi_period_answer(result: dict[str, Any], mixed: bool = False) -> 
     return base
 
 
+def _format_basic_aggregate_answer(result: dict[str, Any]) -> str:
+    operation = result.get("operation", "aggregate")
+    entity_label = result.get("entity_label", result.get("entity", "Entity"))
+    metric_label = result.get("metric_label", "value")
+
+    if result.get("grouping") == "month":
+        parts = [
+            f"{int(row['year']):04d}-{int(row['month']):02d}: {row['value']}"
+            for row in result.get("rows", [])
+        ]
+        return (
+            f"{entity_label} {metric_label} ({operation}) by month: "
+            + "; ".join(parts)
+            + f". Source: {result['source']}. SQL validation: {result['sql_validation']}."
+        )
+
+    return (
+        f"{entity_label} {metric_label} ({operation}) = {result.get('value')}. "
+        f"Source: {result['source']}. SQL validation: {result['sql_validation']}."
+    )
+
+
 def deterministic_synthesis(state: AgentState) -> str:
     intent = state.get("intent")
 
@@ -520,6 +683,8 @@ def deterministic_synthesis(state: AgentState) -> str:
 
     if intent == "operational_metric":
         return _format_metric_answer(result)
+    if intent == "basic_aggregate":
+        return _format_basic_aggregate_answer(result)
     if intent == "comparison":
         if result.get("tool") == "compare_kpi_periods":
             return _format_multi_period_answer(result)

@@ -123,6 +123,19 @@ The agent may detect, validate, explain, and recommend. It may not modify data.
 
 It blocks database-changing requests such as DELETE, UPDATE, INSERT, DROP, ALTER, and TRUNCATE. All database queries used by the agent are predefined and pass a deterministic read-only SQL validator.
 
+## Hardening controls
+
+### Run correlation
+
+Every `run_agent()` execution is stamped with a `run_id` (`uuid.uuid4()`), consistent with the Banking Investigation Agent. It is created at the start of the run, carried in `DQAgentState`, recorded as the first trace line, and returned by `POST /validate`. This makes one agent execution traceable end-to-end across the trace log, the API response, and (once both agents run side by side) cross-agent log correlation.
+
+### Approved-rule coverage gate
+
+Retrieving a rule and finding no matching rule are different outcomes, but before this control they looked the same to the workflow: `retrieve_rules` silently skips any check whose file or section can't be found, so a missing rule and a found rule both just flowed into the same `execute_checks` step. A new `rule_coverage` node runs right after retrieval and explicitly confirms that every requested check has a corresponding entry in `retrieved_rules`.
+
+- If every requested check is covered, the workflow proceeds to the deterministic PostgreSQL checks as before.
+- If any requested check has no approved rule behind it, the graph routes to a `rule_gap` node instead of `execute_checks`. It marks `validation_status = "ABSTAINED_MISSING_RULE"`, `evidence_status = "INSUFFICIENT"`, never invents cleaning guidance, and never even computes a PostgreSQL result for that run — deterministic check results and rule-grounding status stay two separate, never-conflated pieces of state.
+
 ## Folder structure
 
 ```text
@@ -173,8 +186,11 @@ PASS | shared-rule knowledge consistency
 PASS | read-only SQL guard
 PASS | PostgreSQL DQ reconciliation controls
 PASS | end-to-end warehouse readiness flow
+PASS | run_id request correlation
+PASS | approved-rule coverage (success case)
+PASS | approved-rule coverage (missing rule case)
 
-Passed 5/5 evaluation groups
+Passed 8/8 evaluation groups
 ```
 
 The PostgreSQL checks reconcile against the established Jan-Jun demo controls:
@@ -258,7 +274,7 @@ Use `POST /validate` with:
 }
 ```
 
-The response exposes intent, requested checks, shared rule sources, check evidence, validation status, trace, and final answer.
+The response exposes a `run_id`, intent, requested checks, shared rule sources, check evidence, validation status, trace, and final answer.
 
 ## Optional Claude synthesis
 

@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import uuid
 from typing import Any
 
 from langgraph.graph import END, START, StateGraph
@@ -12,11 +13,11 @@ except Exception:  # Optional; deterministic synthesis works without an API key.
 
 try:
     from .dq_tools import run_checks, validate_readonly_sql, validate_warehouse_readiness
-    from .knowledge import retrieve_rules
+    from .knowledge import retrieve_rules, verify_rule_coverage
     from .state import DQAgentState
 except ImportError:  # Allows: python src/agent.py "question"
     from dq_tools import run_checks, validate_readonly_sql, validate_warehouse_readiness
-    from knowledge import retrieve_rules
+    from knowledge import retrieve_rules, verify_rule_coverage
     from state import DQAgentState
 
 
@@ -107,6 +108,62 @@ def retrieve_rules_node(state: DQAgentState) -> DQAgentState:
         "retrieved_rules": rules,
         "trace": _trace(state, f"[KNOWLEDGE] retrieved={sources}"),
     }
+
+
+def rule_coverage_node(state: DQAgentState) -> DQAgentState:
+    """Confirm every requested check actually has an approved rule behind it.
+
+    ``retrieve_rules`` can come back short (missing file, renamed section, a
+    check added to ``ALL_CHECKS`` without a matching knowledge-map entry)
+    without raising an error. This node is the explicit gate that catches
+    that gap before the workflow is allowed to treat the result as governed.
+    """
+
+    coverage = verify_rule_coverage(
+        state.get("checks_requested", []), state.get("retrieved_rules", [])
+    )
+    return {
+        "rule_grounding_status": coverage["status"],
+        "missing_rule_checks": coverage["missing_checks"],
+        "trace": _trace(
+            state,
+            f"[RULE_GROUNDING] status={coverage['status']} "
+            f"missing={','.join(coverage['missing_checks']) or 'none'}",
+        ),
+    }
+
+
+def rule_gap_node(state: DQAgentState) -> DQAgentState:
+    """Abstain instead of running checks/synthesis when rule grounding is short.
+
+    Deterministic PostgreSQL results are never computed here, so
+    ``check_results`` intentionally stays absent from state: this abstention
+    is about missing rule grounding, not about what the data itself says.
+    """
+
+    missing = state.get("missing_rule_checks", [])
+    return {
+        "validation_status": "ABSTAINED_MISSING_RULE",
+        "evidence_status": "INSUFFICIENT",
+        "final_answer": (
+            "I cannot produce a governed data-quality result. The approved DQ rule for the "
+            f"following requested check(s) was not found in the shared knowledge base: "
+            f"{', '.join(missing)}. I am not going to run or narrate a validation result "
+            "without its approved rule behind it, and I will not invent cleaning guidance to "
+            "fill the gap. Add or fix the corresponding section in the shared business-rules "
+            "knowledge, then re-run this validation."
+        ),
+        "trace": _trace(
+            state,
+            "[ABSTAIN] missing approved rule coverage; stopped before deterministic checks",
+        ),
+    }
+
+
+def route_after_rule_coverage(state: DQAgentState) -> str:
+    if state.get("rule_grounding_status") == "INSUFFICIENT":
+        return "rule_gap"
+    return "execute_checks"
 
 
 def execute_checks_node(state: DQAgentState) -> DQAgentState:
@@ -338,6 +395,8 @@ def build_graph():
 
     builder.add_node("classify", classify_node)
     builder.add_node("retrieve_rules", retrieve_rules_node)
+    builder.add_node("rule_coverage", rule_coverage_node)
+    builder.add_node("rule_gap", rule_gap_node)
     builder.add_node("execute_checks", execute_checks_node)
     builder.add_node("validate", validation_node)
     builder.add_node("synthesize", synthesis_node)
@@ -354,10 +413,19 @@ def build_graph():
             "fallback": "fallback",
         },
     )
-    builder.add_edge("retrieve_rules", "execute_checks")
+    builder.add_edge("retrieve_rules", "rule_coverage")
+    builder.add_conditional_edges(
+        "rule_coverage",
+        route_after_rule_coverage,
+        {
+            "execute_checks": "execute_checks",
+            "rule_gap": "rule_gap",
+        },
+    )
     builder.add_edge("execute_checks", "validate")
     builder.add_edge("validate", "synthesize")
     builder.add_edge("synthesize", END)
+    builder.add_edge("rule_gap", END)
     builder.add_edge("safety_stop", END)
     builder.add_edge("fallback", END)
 
@@ -368,9 +436,11 @@ GRAPH = build_graph()
 
 
 def run_agent(question: str) -> DQAgentState:
+    run_id = str(uuid.uuid4())
     initial: DQAgentState = {
         "question": question,
-        "trace": ["[START] DQ validation request received"],
+        "run_id": run_id,
+        "trace": [f"[START] DQ validation request received run_id={run_id}"],
     }
     return GRAPH.invoke(initial)
 
@@ -383,6 +453,8 @@ def main() -> None:
 
     question = " ".join(args.question)
     result = run_agent(question)
+
+    print(f"\nRun ID: {result.get('run_id', 'unknown')}")
 
     print("\n=== TRACE ===")
     for event in result.get("trace", []):

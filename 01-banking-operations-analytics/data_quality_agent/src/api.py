@@ -25,6 +25,7 @@ class ValidationRequest(BaseModel):
 
 class ValidationResponse(BaseModel):
     question: str
+    run_id: str | None = None
     intent: str
     answer: str
     validation_status: str | None = None
@@ -55,6 +56,7 @@ def validate(request: ValidationRequest) -> ValidationResponse:
 
     return ValidationResponse(
         question=request.question,
+        run_id=state.get("run_id"),
         intent=state.get("intent", "unknown"),
         answer=state.get("final_answer", "No answer returned."),
         validation_status=state.get("validation_status"),

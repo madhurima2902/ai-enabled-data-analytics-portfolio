@@ -39,6 +39,28 @@ def load_h2_sections(file_path: Path) -> dict[str, str]:
     return sections
 
 
+def verify_rule_coverage(
+    check_names: list[str], retrieved_rules: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Confirm every requested check has a corresponding approved rule.
+
+    ``retrieve_rules`` silently skips a check when it has no entry in
+    ``CHECK_TO_KNOWLEDGE`` or when its section text cannot be found in the
+    shared Markdown file. That silence is fine for retrieval, but the
+    workflow must not go on to present a "governed" validation result built
+    on a rule that was never actually found. This is the explicit control
+    that catches that gap before synthesis happens.
+    """
+
+    covered_checks = {item["check"] for item in retrieved_rules}
+    missing_checks = [name for name in check_names if name not in covered_checks]
+
+    return {
+        "status": "SUFFICIENT" if not missing_checks else "INSUFFICIENT",
+        "missing_checks": missing_checks,
+    }
+
+
 def retrieve_rules(check_names: list[str]) -> list[dict[str, Any]]:
     """Return the exact shared rule sections required by selected DQ checks."""
 

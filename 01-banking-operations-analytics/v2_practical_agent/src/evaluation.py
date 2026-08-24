@@ -48,6 +48,11 @@ ROUTING_CASES = [
     ("How many customers do we have?", "basic_aggregate", "get_basic_aggregate"),
     ("What is the average transaction amount each month?", "basic_aggregate", "get_basic_aggregate"),
     ("What is the total account balance?", "basic_aggregate", "get_basic_aggregate"),
+    (
+        "What is the average number of transactions per user per month?",
+        "derived_metric",
+        "get_derived_metric",
+    ),
     ("How many employee records do we have?", "unknown", "none"),
     ("Show the data quality exception summary.", "dq_investigation", "get_dq_summary"),
     ("DELETE FROM warehouse.fact_transactions", "unsafe_request", "none"),
@@ -96,6 +101,7 @@ MULTI_PERIOD_END_TO_END_QUESTION = (
 
 CAMPAIGN_SUCCESS_QUESTION = "Compare January, March and June campaign success data."
 AMBIGUOUS_CAMPAIGN_QUESTION = "Compare January, March and June campaign data."
+DERIVED_METRIC_QUESTION = "What is the average number of transactions per user per month?"
 
 AGGREGATE_CASES = {
     "transactions": "How many transaction entries do we have each month?",
@@ -167,6 +173,15 @@ def check_routing() -> None:
     assert total_balance["tool_args"].get("operation") == "sum"
     assert total_balance["tool_args"].get("entity") == "accounts"
     assert total_balance["tool_args"].get("metric") == "current_balance"
+
+    derived = classify_question(DERIVED_METRIC_QUESTION)
+    assert derived.get("intent") == "derived_metric"
+    assert derived.get("tool_name") == "get_derived_metric"
+    assert derived.get("tool_args", {}).get("metric") == "average_transactions_per_active_customer"
+
+    customer_synonym = classify_question("What is the average number of transactions per customer per month?")
+    assert customer_synonym.get("intent") == "derived_metric"
+    assert customer_synonym.get("tool_args", {}).get("metric") == "average_transactions_per_active_customer"
 
     unsupported = run_agent(UNSUPPORTED_AGGREGATE_QUESTION)
     assert unsupported.get("intent") == "unknown"
@@ -306,6 +321,29 @@ def check_database_controls() -> None:
     assert actual_customer_count == EXPECTED_DB["customer_total_count"], (
         f"customer total expected {EXPECTED_DB['customer_total_count']}, got {actual_customer_count}"
     )
+
+    derived = run_agent(DERIVED_METRIC_QUESTION)
+    assert derived.get("intent") == "derived_metric"
+    assert derived.get("tool_name") == "get_derived_metric"
+    assert derived.get("validation_status") == "PASSED"
+    assert derived.get("evidence_status") == "SUFFICIENT"
+
+    derived_rows = derived.get("tool_result", {}).get("rows", [])
+    assert len(derived_rows) == 6, f"expected Jan-Jun derived metric rows, got {len(derived_rows)}"
+    assert [int(row["metric_numerator"]) for row in derived_rows] == EXPECTED_DB["transaction_monthly_counts"], (
+        "derived metric numerator must reconcile to trusted monthly transaction counts"
+    )
+    for row in derived_rows:
+        numerator = float(row["metric_numerator"])
+        denominator = float(row["metric_denominator"])
+        metric_value = float(row["metric_value"])
+        assert denominator > 0, "active-customer denominator must be positive"
+        assert denominator <= EXPECTED_DB["customer_total_count"], (
+            "active customers cannot exceed the total customer base"
+        )
+        assert math.isclose(metric_value, round(numerator / denominator, 2), abs_tol=0.01), (
+            f"derived metric formula mismatch for month {row['month']}"
+        )
 
 
 def main() -> None:

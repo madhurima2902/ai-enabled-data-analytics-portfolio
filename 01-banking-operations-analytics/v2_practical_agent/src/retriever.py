@@ -10,6 +10,10 @@ STOP_WORDS = {
     "what", "is", "the", "a", "an", "of", "to", "in", "for", "and",
     "how", "do", "we", "was", "were", "did", "does", "during", "selected",
     "where",
+    # Generic analytics/query words should not be enough by themselves to retrieve
+    # an approved knowledge chunk. The retriever should match the business concept,
+    # e.g. "transaction failure rate", rather than generic words such as "metric".
+    "metric", "metrics", "kpi", "kpis",
 }
 
 

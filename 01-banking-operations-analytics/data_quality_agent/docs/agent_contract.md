@@ -64,6 +64,7 @@ Cleaning/remediation is separate from detection:
 
 Each answer should contain, where applicable:
 
+- a `run_id` correlating this execution across trace, API response, and logs;
 - requested validation scope;
 - check result(s);
 - actual evidence/counts;
@@ -79,10 +80,12 @@ The agent is considered correct when:
 
 1. routing selects the expected validation check(s);
 2. business rules come from the shared approved knowledge;
-3. SQL remains read-only;
-4. evidence reconciles to the trusted Jan-Jun source tables;
-5. the warehouse-readiness conclusion follows deterministic check results;
-6. unsupported requests are blocked or explicitly abstained from.
+3. every requested check's approved rule was actually retrieved before any result is presented as governed — a missing rule causes the agent to abstain (`ABSTAINED_MISSING_RULE`) rather than run or narrate a result without it;
+4. SQL remains read-only;
+5. evidence reconciles to the trusted Jan-Jun source tables;
+6. the warehouse-readiness conclusion follows deterministic check results, and deterministic check results are never conflated with rule-grounding status;
+7. unsupported requests are blocked or explicitly abstained from;
+8. each execution carries a unique `run_id` from start to final answer.
 
 ## Prototype boundary
 

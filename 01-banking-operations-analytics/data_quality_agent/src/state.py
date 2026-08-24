@@ -5,9 +5,12 @@ class DQAgentState(TypedDict, total=False):
     """Shared LangGraph state for the bounded data-quality workflow."""
 
     question: str
+    run_id: str
     intent: str
     checks_requested: list[str]
     retrieved_rules: list[dict[str, Any]]
+    rule_grounding_status: str
+    missing_rule_checks: list[str]
     check_results: dict[str, Any]
     evidence_status: str
     validation_status: str

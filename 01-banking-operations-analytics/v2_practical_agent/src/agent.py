@@ -103,7 +103,9 @@ def detect_kpi(question: str) -> str | None:
         return "complaint_resolution_rate"
     if "sla" in q and any(term in q for term in ["breach", "breached", "performance"]):
         return "sla_breach_rate"
-    if "campaign" in q and any(term in q for term in ["conversion", "converted"]):
+    if "campaign" in q and any(
+        term in q for term in ["conversion", "converted", "success", "successful"]
+    ):
         return "campaign_conversion_rate"
     if "success rate" in q or "transaction success" in q:
         return "transaction_success_rate"

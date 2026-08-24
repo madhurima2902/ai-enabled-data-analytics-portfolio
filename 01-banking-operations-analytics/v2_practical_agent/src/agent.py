@@ -17,6 +17,7 @@ try:
     from .db_tools import (
         KPI_LABELS,
         compare_kpi,
+        compare_kpi_periods,
         get_dq_summary,
         get_kpi_metric,
         get_transaction_details,
@@ -28,6 +29,7 @@ except ImportError:  # Allows: python src/agent.py "question"
     from db_tools import (
         KPI_LABELS,
         compare_kpi,
+        compare_kpi_periods,
         get_dq_summary,
         get_kpi_metric,
         get_transaction_details,
@@ -158,7 +160,24 @@ def classify_question(question: str) -> dict[str, Any]:
                 "tool_name": "none",
                 "tool_args": {},
             }
-        current_month = months[-1]
+
+        # If the user explicitly names multiple periods, preserve all of them for evidence.
+        # This avoids silently collapsing a three-period question into a two-period comparison.
+        if len(months) >= 2:
+            requested_months = sorted(set(months))
+            return {
+                "intent": "mixed_analysis",
+                "knowledge_scope": ["kpi_definitions.md", "investigation_playbook.md"],
+                "tool_name": "compare_kpi_periods",
+                "tool_args": {
+                    "kpi": kpi,
+                    "months": requested_months,
+                    "channel": channel,
+                    "year": year,
+                },
+            }
+
+        current_month = months[0]
         prior_month = current_month - 1 if current_month > 1 else 12
         prior_year = year if current_month > 1 else year - 1
         if prior_year != year:
@@ -186,8 +205,20 @@ def classify_question(question: str) -> dict[str, Any]:
         len(months) >= 2
         or any(term in q for term in ["compare", "versus", " vs ", "change", "improve", "deteriorate"])
     ):
+        if len(months) >= 3:
+            return {
+                "intent": "comparison",
+                "knowledge_scope": [],
+                "tool_name": "compare_kpi_periods",
+                "tool_args": {
+                    "kpi": kpi,
+                    "months": sorted(set(months)),
+                    "channel": channel,
+                    "year": year,
+                },
+            }
         if len(months) >= 2:
-            month_a, month_b = months[0], months[1]
+            month_a, month_b = sorted(months[:2])
         elif len(months) == 1:
             month_b = months[0]
             month_a = month_b - 1
@@ -278,6 +309,8 @@ def tool_node(state: AgentState) -> AgentState:
             result = get_kpi_metric(**args)
         elif name == "compare_kpi":
             result = compare_kpi(**args)
+        elif name == "compare_kpi_periods":
+            result = compare_kpi_periods(**args)
         elif name == "get_transaction_details":
             if not args.get("transaction_id"):
                 raise ValueError("A transaction ID is required for transaction lookup.")
@@ -324,6 +357,14 @@ def validation_node(state: AgentState) -> AgentState:
         if first.get("metric_value") is None or second.get("metric_value") is None:
             evidence_status = "INSUFFICIENT"
             validation_status = "FAILED: one comparison period has no KPI value"
+        else:
+            evidence_status = "SUFFICIENT"
+            validation_status = "PASSED"
+    elif state.get("tool_name") == "compare_kpi_periods":
+        periods = result.get("periods", [])
+        if len(periods) < 2 or any(period.get("metric_value") is None for period in periods):
+            evidence_status = "INSUFFICIENT"
+            validation_status = "FAILED: one or more requested comparison periods have no KPI value"
         else:
             evidence_status = "SUFFICIENT"
             validation_status = "PASSED"
@@ -425,6 +466,41 @@ def _format_comparison_answer(result: dict[str, Any], mixed: bool = False) -> st
     return base
 
 
+def _format_multi_period_answer(result: dict[str, Any], mixed: bool = False) -> str:
+    periods = result.get("periods", [])
+    period_text = ", ".join(
+        f"{period.get('metric_value')}% ({period.get('period_start')})"
+        for period in periods
+    )
+    base = (
+        f"{result['kpi_label']} for {result['channel']} across the requested periods was "
+        f"{period_text}."
+    )
+
+    changes = result.get("changes", [])
+    if changes:
+        change_parts = []
+        for change in changes:
+            delta = change.get("delta_percentage_points")
+            delta_text = "unavailable" if delta is None else f"{float(delta):+.2f}"
+            change_parts.append(
+                f"{change.get('from_period')} to {change.get('to_period')}: "
+                f"{delta_text} percentage points"
+            )
+        base += " Sequential changes: " + "; ".join(change_parts) + "."
+
+    base += f" Source: {result['source']}."
+
+    if mixed:
+        base += (
+            " The approved knowledge does not define a formal 'concerning' threshold, "
+            "so I would not invent one. The evidence supports describing the multi-period movement; "
+            "a specific root cause requires additional evidence."
+        )
+
+    return base
+
+
 def deterministic_synthesis(state: AgentState) -> str:
     intent = state.get("intent")
 
@@ -443,8 +519,12 @@ def deterministic_synthesis(state: AgentState) -> str:
     if intent == "operational_metric":
         return _format_metric_answer(result)
     if intent == "comparison":
+        if result.get("tool") == "compare_kpi_periods":
+            return _format_multi_period_answer(result)
         return _format_comparison_answer(result)
     if intent == "mixed_analysis":
+        if result.get("tool") == "compare_kpi_periods":
+            return _format_multi_period_answer(result, mixed=True)
         return _format_comparison_answer(result, mixed=True)
     if intent == "transaction_lookup":
         record = result.get("record")

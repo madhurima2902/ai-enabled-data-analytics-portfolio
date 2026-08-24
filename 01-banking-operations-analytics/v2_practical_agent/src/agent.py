@@ -15,6 +15,7 @@ except Exception:  # Optional; deterministic synthesis works without an API key.
 
 try:
     from .aggregate_tools import get_basic_aggregate
+    from .derived_metrics import get_derived_metric
     from .db_tools import (
         compare_kpi,
         compare_kpi_periods,
@@ -27,6 +28,7 @@ try:
     from .state import AgentState
 except ImportError:
     from aggregate_tools import get_basic_aggregate
+    from derived_metrics import get_derived_metric
     from db_tools import (
         compare_kpi,
         compare_kpi_periods,
@@ -132,6 +134,33 @@ def detect_entity(question: str) -> str | None:
     return None
 
 
+def detect_derived_metric_request(question: str) -> dict[str, Any] | None:
+    """Recognize only explicitly approved derived-metric wording."""
+
+    q = question.lower().strip()
+    has_transaction = bool(re.search(r"\btransactions?\b", q))
+    has_average = "average" in q or "avg" in q
+    has_customer_denominator = any(
+        phrase in q
+        for phrase in [
+            "per user", "per users", "per customer", "per customers",
+            "per active user", "per active customer",
+        ]
+    )
+
+    if not (has_transaction and has_average and has_customer_denominator):
+        return None
+
+    # Approved definition: monthly transaction count / distinct customers with at
+    # least one transaction in that month. In this banking prototype, "user" is an
+    # accepted business-language synonym for customer for this specific metric.
+    return {
+        "metric": "average_transactions_per_active_customer",
+        "months": sorted(set(parse_months(question))),
+        "year": detect_year(question),
+    }
+
+
 def detect_aggregate_metric(entity: str, question: str) -> str | None:
     q = question.lower()
     if entity == "transactions":
@@ -230,6 +259,15 @@ def classify_question(question: str) -> dict[str, Any]:
             "knowledge_scope": ["business_rules.md"],
             "tool_name": "get_dq_summary",
             "tool_args": {},
+        }
+
+    derived = detect_derived_metric_request(question)
+    if derived is not None:
+        return {
+            "intent": "derived_metric",
+            "knowledge_scope": [],
+            "tool_name": "get_derived_metric",
+            "tool_args": derived,
         }
 
     aggregate = detect_basic_aggregate_request(question)
@@ -365,6 +403,8 @@ def tool_node(state: AgentState) -> AgentState:
             result = compare_kpi_periods(**args)
         elif name == "get_basic_aggregate":
             result = get_basic_aggregate(**args)
+        elif name == "get_derived_metric":
+            result = get_derived_metric(**args)
         elif name == "get_transaction_details":
             if not args.get("transaction_id"):
                 raise ValueError("A transaction ID is required for transaction lookup.")
@@ -411,6 +451,16 @@ def validation_node(state: AgentState) -> AgentState:
             valid = result.get("value") is not None
         evidence_status = "SUFFICIENT" if valid else "INSUFFICIENT"
         validation_status = "PASSED" if valid else "FAILED: aggregate query returned no usable value"
+    elif name == "get_derived_metric":
+        rows = result.get("rows", [])
+        valid = bool(rows) and all(
+            row.get("metric_value") is not None
+            and row.get("metric_numerator") is not None
+            and row.get("metric_denominator") not in (None, 0)
+            for row in rows
+        )
+        evidence_status = "SUFFICIENT" if valid else "INSUFFICIENT"
+        validation_status = "PASSED" if valid else "FAILED: derived metric numerator or denominator is unavailable"
     elif name == "get_transaction_details":
         valid = bool(result.get("found"))
         evidence_status = "SUFFICIENT" if valid else "INSUFFICIENT"
@@ -448,7 +498,7 @@ def fallback_node(state: AgentState) -> AgentState:
         "final_answer": (
             "I do not have enough approved routing information to answer this request safely. "
             "Please ask for an approved KPI definition, a Jan-Jun 2026 KPI period/comparison, "
-            "a basic count/sum/average for an approved entity, a transaction lookup, or a supported "
+            "a basic count/sum/average or approved derived metric, a transaction lookup, or a supported "
             "data-quality investigation."
         ),
         "trace": _trace(state, "[ABSTAIN] unsupported or underspecified request"),
@@ -531,6 +581,21 @@ def _format_basic_aggregate_answer(result: dict[str, Any]) -> str:
     )
 
 
+def _format_derived_metric_answer(result: dict[str, Any]) -> str:
+    parts = [
+        (
+            f"{int(row['year']):04d}-{int(row['month']):02d}: {row['metric_value']} "
+            f"(transactions={row['metric_numerator']}, active_customers={row['metric_denominator']})"
+        )
+        for row in result.get("rows", [])
+    ]
+    return (
+        f"{result['metric_label']} by month: " + "; ".join(parts)
+        + ". Approved definition: monthly transaction count divided by distinct customers with at least one "
+        + f"transaction in that month. Source: {result['source']}. SQL validation: {result['sql_validation']}."
+    )
+
+
 def deterministic_synthesis(state: AgentState) -> str:
     intent = state.get("intent")
     if intent == "knowledge_question":
@@ -547,6 +612,8 @@ def deterministic_synthesis(state: AgentState) -> str:
         return _format_metric_answer(result)
     if intent == "basic_aggregate":
         return _format_basic_aggregate_answer(result)
+    if intent == "derived_metric":
+        return _format_derived_metric_answer(result)
     if intent == "comparison":
         return _format_multi_period_answer(result) if result.get("tool") == "compare_kpi_periods" else _format_comparison_answer(result)
     if intent == "mixed_analysis":
@@ -595,7 +662,7 @@ Validated deterministic draft:
 {deterministic_answer}
 
 Write a concise banking-operations answer using only the supplied context and evidence.
-Do not invent thresholds or root causes. Include source and period where available.
+Do not invent thresholds, metric definitions, denominators, or root causes. Include source and period where available.
 If evidence is insufficient, say so explicitly.
 """.strip()
     response = client.messages.create(

@@ -582,18 +582,42 @@ def _format_basic_aggregate_answer(result: dict[str, Any]) -> str:
 
 
 def _format_derived_metric_answer(result: dict[str, Any]) -> str:
+    rows = result.get("rows", [])
     parts = [
         (
             f"{int(row['year']):04d}-{int(row['month']):02d}: {row['metric_value']} "
             f"(transactions={row['metric_numerator']}, active_customers={row['metric_denominator']})"
         )
-        for row in result.get("rows", [])
+        for row in rows
     ]
-    return (
-        f"{result['metric_label']} by month: " + "; ".join(parts)
-        + ". Approved definition: monthly transaction count divided by distinct customers with at least one "
-        + f"transaction in that month. Source: {result['source']}. SQL validation: {result['sql_validation']}."
+
+    base = f"{result['metric_label']} by month: " + "; ".join(parts) + "."
+    analysis = result.get("analysis", {})
+
+    if analysis:
+        metric_pct = analysis.get("metric_change_percent")
+        numerator_pct = analysis.get("numerator_change_percent")
+        denominator_pct = analysis.get("denominator_change_percent")
+        metric_pct_text = "unavailable" if metric_pct is None else f"{float(metric_pct):+.2f}%"
+        numerator_pct_text = "unavailable" if numerator_pct is None else f"{float(numerator_pct):+.2f}%"
+        denominator_pct_text = "unavailable" if denominator_pct is None else f"{float(denominator_pct):+.2f}%"
+
+        base += (
+            f" Evidence-based analysis: the metric {analysis.get('overall_direction')} from "
+            f"{analysis.get('first_value')} in {analysis.get('first_period')} to "
+            f"{analysis.get('last_value')} in {analysis.get('last_period')}, a change of "
+            f"{float(analysis.get('overall_delta', 0)):+.2f} ({metric_pct_text}). "
+            f"It {analysis.get('trend_pattern')}. Over the same observed period, transaction volume "
+            f"changed {numerator_pct_text} while active customers changed {denominator_pct_text}; "
+            f"{analysis.get('relative_growth_pattern')}. "
+            f"{analysis.get('interpretation_boundary')}"
+        )
+
+    base += (
+        " Approved definition: monthly transaction count divided by distinct customers with at least one "
+        f"transaction in that month. Source: {result['source']}. SQL validation: {result['sql_validation']}."
     )
+    return base
 
 
 def deterministic_synthesis(state: AgentState) -> str:

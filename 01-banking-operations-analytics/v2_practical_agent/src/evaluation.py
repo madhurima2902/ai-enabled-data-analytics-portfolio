@@ -328,7 +328,8 @@ def check_database_controls() -> None:
     assert derived.get("validation_status") == "PASSED"
     assert derived.get("evidence_status") == "SUFFICIENT"
 
-    derived_rows = derived.get("tool_result", {}).get("rows", [])
+    derived_result = derived.get("tool_result", {})
+    derived_rows = derived_result.get("rows", [])
     assert len(derived_rows) == 6, f"expected Jan-Jun derived metric rows, got {len(derived_rows)}"
     assert [int(row["metric_numerator"]) for row in derived_rows] == EXPECTED_DB["transaction_monthly_counts"], (
         "derived metric numerator must reconcile to trusted monthly transaction counts"
@@ -344,6 +345,39 @@ def check_database_controls() -> None:
         assert math.isclose(metric_value, round(numerator / denominator, 2), abs_tol=0.01), (
             f"derived metric formula mismatch for month {row['month']}"
         )
+
+    # Evidence-based interpretation is also deterministic and testable. It must
+    # describe the observed movement and supporting numerator/denominator evidence
+    # without inventing a business threshold or root cause.
+    analysis = derived_result.get("analysis", {})
+    assert analysis, "derived metric should include deterministic evidence analysis"
+    assert analysis.get("overall_direction") == "increased", (
+        f"expected overall increase, got {analysis.get('overall_direction')!r}"
+    )
+    assert analysis.get("trend_pattern") == "increased in every observed period", (
+        f"unexpected trend pattern: {analysis.get('trend_pattern')!r}"
+    )
+    assert math.isclose(float(analysis.get("metric_change_percent")), 43.38, abs_tol=0.05), (
+        f"metric change percent expected ~43.38, got {analysis.get('metric_change_percent')}"
+    )
+    assert math.isclose(float(analysis.get("numerator_change_percent")), 52.00, abs_tol=0.05), (
+        f"transaction-volume growth expected 52.00, got {analysis.get('numerator_change_percent')}"
+    )
+    assert math.isclose(float(analysis.get("denominator_change_percent")), 5.89, abs_tol=0.05), (
+        f"active-customer growth expected ~5.89, got {analysis.get('denominator_change_percent')}"
+    )
+    assert analysis.get("relative_growth_pattern") == (
+        "transaction volume grew faster than the active-customer base"
+    )
+
+    answer = derived.get("final_answer", "").lower()
+    assert "evidence-based analysis" in answer, "final answer should include evidence-based analysis"
+    assert "transaction volume" in answer and "active customers" in answer, (
+        "final answer should cite numerator and denominator movement"
+    )
+    assert "no approved target or threshold" in answer, (
+        "final answer should preserve the interpretation boundary"
+    )
 
 
 def main() -> None:

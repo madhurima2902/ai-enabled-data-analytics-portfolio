@@ -306,6 +306,50 @@ def compare_kpi(
     }
 
 
+def compare_kpi_periods(
+    kpi: str,
+    months: list[int],
+    channel: str | None = None,
+    year: int = 2026,
+) -> dict[str, Any]:
+    """Compare an approved KPI across two or more explicitly requested months."""
+
+    ordered_months = sorted(dict.fromkeys(months))
+    if len(ordered_months) < 2:
+        raise ValueError("At least two distinct months are required for multi-period comparison.")
+
+    periods = [
+        get_kpi_metric(kpi, month, channel, year)
+        for month in ordered_months
+    ]
+
+    changes: list[dict[str, Any]] = []
+    for first, second in zip(periods, periods[1:]):
+        first_value = first.get("metric_value")
+        second_value = second.get("metric_value")
+        delta = None
+        if first_value is not None and second_value is not None:
+            delta = round(float(second_value) - float(first_value), 2)
+        changes.append(
+            {
+                "from_period": first.get("period_start"),
+                "to_period": second.get("period_start"),
+                "delta_percentage_points": delta,
+            }
+        )
+
+    return {
+        "tool": "compare_kpi_periods",
+        "kpi": kpi,
+        "kpi_label": KPI_LABELS[kpi],
+        "channel": channel or "All Channels",
+        "periods": periods,
+        "changes": changes,
+        "source": "PostgreSQL trusted warehouse",
+        "sql_validation": "PASSED",
+    }
+
+
 def get_transaction_details(transaction_id: str) -> dict[str, Any]:
     sql = """
 SELECT

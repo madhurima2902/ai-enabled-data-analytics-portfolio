@@ -16,7 +16,6 @@ except Exception:  # Optional; deterministic synthesis works without an API key.
 try:
     from .aggregate_tools import get_basic_aggregate
     from .db_tools import (
-        KPI_LABELS,
         compare_kpi,
         compare_kpi_periods,
         get_dq_summary,
@@ -26,10 +25,9 @@ try:
     )
     from .retriever import detect_knowledge_scope, retrieve_chunks
     from .state import AgentState
-except ImportError:  # Allows: python src/agent.py "question"
+except ImportError:
     from aggregate_tools import get_basic_aggregate
     from db_tools import (
-        KPI_LABELS,
         compare_kpi,
         compare_kpi_periods,
         get_dq_summary,
@@ -45,14 +43,14 @@ MONTHS = {name.lower(): number for number, name in enumerate(calendar.month_name
 MONTHS.update({name.lower(): number for number, name in enumerate(calendar.month_abbr) if name})
 
 CHANNELS = {
-    "mobile": "Mobile Banking",
     "mobile banking": "Mobile Banking",
-    "internet": "Internet Banking",
     "internet banking": "Internet Banking",
+    "call center": "Call Center",
+    "mobile": "Mobile Banking",
+    "internet": "Internet Banking",
     "atm": "ATM",
     "branch": "Branch",
     "pos": "POS",
-    "call center": "Call Center",
 }
 
 UNSAFE_TERMS = [
@@ -74,7 +72,7 @@ ENTITY_TERMS = {
 
 AGGREGATE_CUES = [
     "how many", "number of", "count", "entries", "entry", "records", "record", "rows", "row",
-    "average", "avg", "mean", "sum", "total",
+    "average", "avg", "sum", "total",
 ]
 
 
@@ -85,12 +83,10 @@ def _trace(state: AgentState, message: str) -> list[str]:
 def parse_months(question: str) -> list[int]:
     q = question.lower()
     found: list[tuple[int, int]] = []
-
     for name, number in MONTHS.items():
         match = re.search(rf"\b{re.escape(name)}\b", q)
         if match:
             found.append((match.start(), number))
-
     ordered: list[int] = []
     for _, number in sorted(found):
         if number not in ordered:
@@ -113,22 +109,18 @@ def detect_channel(question: str) -> str | None:
 
 def detect_kpi(question: str) -> str | None:
     q = question.lower()
-
     if "complaints per" in q or "complaint burden" in q:
         return "complaints_per_1000_transactions"
     if "complaint resolution" in q or ("complaint" in q and "resolution rate" in q):
         return "complaint_resolution_rate"
     if "sla" in q and any(term in q for term in ["breach", "breached", "performance"]):
         return "sla_breach_rate"
-    if "campaign" in q and any(
-        term in q for term in ["conversion", "converted", "success", "successful"]
-    ):
+    if "campaign" in q and any(term in q for term in ["conversion", "converted", "success", "successful"]):
         return "campaign_conversion_rate"
     if "success rate" in q or "transaction success" in q:
         return "transaction_success_rate"
     if "failure rate" in q or "transaction failure" in q or "transaction failures" in q:
         return "transaction_failure_rate"
-
     return None
 
 
@@ -142,7 +134,6 @@ def detect_entity(question: str) -> str | None:
 
 def detect_aggregate_metric(entity: str, question: str) -> str | None:
     q = question.lower()
-
     if entity == "transactions":
         if "fee" in q:
             return "fee_amount"
@@ -161,9 +152,8 @@ def detect_aggregate_metric(entity: str, question: str) -> str | None:
     elif entity == "sla_tickets":
         if "target" in q and "hour" in q:
             return "sla_target_hours"
-    elif entity == "customers":
-        if "age" in q:
-            return "customer_age"
+    elif entity == "customers" and "age" in q:
+        return "customer_age"
     elif entity == "accounts":
         if "credit limit" in q:
             return "credit_limit"
@@ -171,7 +161,6 @@ def detect_aggregate_metric(entity: str, question: str) -> str | None:
             return "interest_rate"
         if "balance" in q:
             return "current_balance"
-
     return None
 
 
@@ -182,31 +171,21 @@ def detect_basic_aggregate_request(question: str) -> dict[str, Any] | None:
 
     entity = detect_entity(question)
     if not entity:
-        return {
-            "supported": False,
-            "reason": "No approved aggregate entity matched the request.",
-        }
+        return {"supported": False, "reason": "No approved aggregate entity matched the request."}
 
-    months = parse_months(question)
-    year = detect_year(question)
     metric = detect_aggregate_metric(entity, question)
-    group_by_month = any(term in q for term in ["each month", "per month", "monthly", "by month"])
-
-    if any(term in q for term in ["average", "avg", "mean"]):
+    if any(term in q for term in ["average", "avg"]):
         operation = "average"
-    elif "sum" in q:
-        operation = "sum"
-    elif "total" in q and metric:
+    elif "sum" in q or ("total" in q and metric):
         operation = "sum"
     else:
         operation = "count"
 
     if operation in {"sum", "average"} and not metric:
-        return {
-            "supported": False,
-            "reason": f"{operation} requires an approved numeric measure for {entity}.",
-        }
+        return {"supported": False, "reason": f"{operation} requires an approved numeric measure for {entity}."}
 
+    months = sorted(set(parse_months(question)))
+    group_by_month = any(term in q for term in ["each month", "per month", "monthly", "by month"])
     if len(months) >= 2:
         group_by_month = True
 
@@ -215,15 +194,13 @@ def detect_basic_aggregate_request(question: str) -> dict[str, Any] | None:
         "operation": operation,
         "entity": entity,
         "metric": metric,
-        "months": sorted(set(months)),
-        "year": year,
+        "months": months,
+        "year": detect_year(question),
         "group_by_month": group_by_month,
     }
 
 
 def classify_question(question: str) -> dict[str, Any]:
-    """Deterministic bounded router for the interview demo."""
-
     q = question.lower().strip()
     months = parse_months(question)
     year = detect_year(question)
@@ -232,12 +209,7 @@ def classify_question(question: str) -> dict[str, Any]:
     scopes = detect_knowledge_scope(question)
 
     if any(term in q for term in UNSAFE_TERMS):
-        return {
-            "intent": "unsafe_request",
-            "knowledge_scope": [],
-            "tool_name": "none",
-            "tool_args": {},
-        }
+        return {"intent": "unsafe_request", "knowledge_scope": [], "tool_name": "none", "tool_args": {}}
 
     transaction_match = re.search(r"\btx[a-z0-9_-]*\d+[a-z0-9_-]*\b", q, re.IGNORECASE)
     if transaction_match or "transaction_id" in q or "transaction id" in q:
@@ -263,12 +235,7 @@ def classify_question(question: str) -> dict[str, Any]:
     aggregate = detect_basic_aggregate_request(question)
     if aggregate is not None:
         if not aggregate.get("supported"):
-            return {
-                "intent": "unknown",
-                "knowledge_scope": [],
-                "tool_name": "none",
-                "tool_args": {},
-            }
+            return {"intent": "unknown", "knowledge_scope": [], "tool_name": "none", "tool_args": {}}
         return {
             "intent": "basic_aggregate",
             "knowledge_scope": [],
@@ -285,37 +252,24 @@ def classify_question(question: str) -> dict[str, Any]:
 
     if kpi and any(term in q for term in ["concerning", "why", "investigate", "root cause", "interpret"]):
         if not months:
-            return {
-                "intent": "unknown",
-                "knowledge_scope": scopes,
-                "tool_name": "none",
-                "tool_args": {},
-            }
-
+            return {"intent": "unknown", "knowledge_scope": scopes, "tool_name": "none", "tool_args": {}}
         if len(months) >= 2:
-            requested_months = sorted(set(months))
             return {
                 "intent": "mixed_analysis",
                 "knowledge_scope": ["kpi_definitions.md", "investigation_playbook.md"],
                 "tool_name": "compare_kpi_periods",
                 "tool_args": {
                     "kpi": kpi,
-                    "months": requested_months,
+                    "months": sorted(set(months)),
                     "channel": channel,
                     "year": year,
                 },
             }
-
         current_month = months[0]
         prior_month = current_month - 1 if current_month > 1 else 12
         prior_year = year if current_month > 1 else year - 1
         if prior_year != year:
-            return {
-                "intent": "unknown",
-                "knowledge_scope": scopes,
-                "tool_name": "none",
-                "tool_args": {},
-            }
+            return {"intent": "unknown", "knowledge_scope": scopes, "tool_name": "none", "tool_args": {}}
         return {
             "intent": "mixed_analysis",
             "knowledge_scope": ["kpi_definitions.md", "investigation_playbook.md"],
@@ -329,10 +283,7 @@ def classify_question(question: str) -> dict[str, Any]:
             },
         }
 
-    if kpi and (
-        len(months) >= 2
-        or any(term in q for term in ["compare", "versus", " vs ", "change", "improve", "deteriorate"])
-    ):
+    if kpi and (len(months) >= 2 or any(term in q for term in ["compare", "versus", " vs ", "change", "improve", "deteriorate"])):
         if len(months) >= 3:
             return {
                 "intent": "comparison",
@@ -351,12 +302,7 @@ def classify_question(question: str) -> dict[str, Any]:
             month_b = months[0]
             month_a = month_b - 1
         else:
-            return {
-                "intent": "unknown",
-                "knowledge_scope": [],
-                "tool_name": "none",
-                "tool_args": {},
-            }
+            return {"intent": "unknown", "knowledge_scope": [], "tool_name": "none", "tool_args": {}}
         return {
             "intent": "comparison",
             "knowledge_scope": [],
@@ -375,15 +321,10 @@ def classify_question(question: str) -> dict[str, Any]:
             "intent": "operational_metric",
             "knowledge_scope": [],
             "tool_name": "get_kpi_metric",
-            "tool_args": {
-                "kpi": kpi,
-                "month": months[-1],
-                "channel": channel,
-                "year": year,
-            },
+            "tool_args": {"kpi": kpi, "month": months[-1], "channel": channel, "year": year},
         }
 
-    if scopes or any(term in q for term in ["what is", "definition", "define", "mean", "formula"]):
+    if scopes or any(term in q for term in ["what is", "what does", "definition", "define", "mean", "formula"]):
         return {
             "intent": "knowledge_question",
             "knowledge_scope": scopes or ["kpi_definitions.md"],
@@ -391,47 +332,30 @@ def classify_question(question: str) -> dict[str, Any]:
             "tool_args": {},
         }
 
-    return {
-        "intent": "unknown",
-        "knowledge_scope": scopes,
-        "tool_name": "none",
-        "tool_args": {},
-    }
+    return {"intent": "unknown", "knowledge_scope": scopes, "tool_name": "none", "tool_args": {}}
 
 
 def classify_node(state: AgentState) -> AgentState:
     decision = classify_question(state["question"])
     return {
         **decision,
-        "trace": _trace(
-            state,
-            f"[ROUTE] intent={decision['intent']} tool={decision['tool_name']}",
-        ),
+        "trace": _trace(state, f"[ROUTE] intent={decision['intent']} tool={decision['tool_name']}"),
     }
 
 
 def retrieve_node(state: AgentState) -> AgentState:
-    scopes = state.get("knowledge_scope") or None
-    results = retrieve_chunks(state["question"], top_k=3, scopes=scopes)
-
+    results = retrieve_chunks(state["question"], top_k=3, scopes=state.get("knowledge_scope") or None)
     if results:
-        source_text = ", ".join(
-            f"{result['source']}#{result['section']}" for result in results
-        )
+        source_text = ", ".join(f"{r['source']}#{r['section']}" for r in results)
         message = f"[RAG] retrieved={source_text}"
     else:
         message = "[RAG] no relevant approved chunk retrieved"
-
-    return {
-        "retrieved_context": results,
-        "trace": _trace(state, message),
-    }
+    return {"retrieved_context": results, "trace": _trace(state, message)}
 
 
 def tool_node(state: AgentState) -> AgentState:
     name = state.get("tool_name", "none")
     args = state.get("tool_args", {})
-
     try:
         if name == "get_kpi_metric":
             result = get_kpi_metric(**args)
@@ -451,68 +375,46 @@ def tool_node(state: AgentState) -> AgentState:
             result = {"error": f"Unsupported or missing tool: {name}"}
     except Exception as exc:
         result = {"error": str(exc), "tool": name}
-
     status = "ERROR" if result.get("error") else "SUCCESS"
-    return {
-        "tool_result": result,
-        "trace": _trace(state, f"[TOOL] {name} status={status}"),
-    }
+    return {"tool_result": result, "trace": _trace(state, f"[TOOL] {name} status={status}")}
 
 
 def validation_node(state: AgentState) -> AgentState:
     result = state.get("tool_result", {})
+    name = state.get("tool_name")
 
     if state.get("intent") == "knowledge_question":
-        context = state.get("retrieved_context", [])
-        if context:
-            evidence_status = "SUFFICIENT"
-            validation_status = "PASSED"
-        else:
-            evidence_status = "INSUFFICIENT"
-            validation_status = "ABSTAINED: no approved chunk retrieved"
+        valid = bool(state.get("retrieved_context", []))
+        evidence_status = "SUFFICIENT" if valid else "INSUFFICIENT"
+        validation_status = "PASSED" if valid else "ABSTAINED: no approved chunk retrieved"
     elif result.get("error"):
         evidence_status = "INSUFFICIENT"
         validation_status = f"FAILED: {result['error']}"
-    elif state.get("tool_name") == "get_kpi_metric":
-        denominator = result.get("metric_denominator")
-        if denominator in (None, 0):
-            evidence_status = "INSUFFICIENT"
-            validation_status = "FAILED: KPI denominator is empty or zero"
-        else:
-            evidence_status = "SUFFICIENT"
-            validation_status = "PASSED"
-    elif state.get("tool_name") == "compare_kpi":
-        first = result.get("first_period", {})
-        second = result.get("second_period", {})
-        if first.get("metric_value") is None or second.get("metric_value") is None:
-            evidence_status = "INSUFFICIENT"
-            validation_status = "FAILED: one comparison period has no KPI value"
-        else:
-            evidence_status = "SUFFICIENT"
-            validation_status = "PASSED"
-    elif state.get("tool_name") == "compare_kpi_periods":
+    elif name == "get_kpi_metric":
+        valid = result.get("metric_denominator") not in (None, 0)
+        evidence_status = "SUFFICIENT" if valid else "INSUFFICIENT"
+        validation_status = "PASSED" if valid else "FAILED: KPI denominator is empty or zero"
+    elif name == "compare_kpi":
+        valid = result.get("first_period", {}).get("metric_value") is not None and result.get("second_period", {}).get("metric_value") is not None
+        evidence_status = "SUFFICIENT" if valid else "INSUFFICIENT"
+        validation_status = "PASSED" if valid else "FAILED: one comparison period has no KPI value"
+    elif name == "compare_kpi_periods":
         periods = result.get("periods", [])
-        if len(periods) < 2 or any(period.get("metric_value") is None for period in periods):
-            evidence_status = "INSUFFICIENT"
-            validation_status = "FAILED: one or more requested comparison periods have no KPI value"
-        else:
-            evidence_status = "SUFFICIENT"
-            validation_status = "PASSED"
-    elif state.get("tool_name") == "get_basic_aggregate":
+        valid = len(periods) >= 2 and all(p.get("metric_value") is not None for p in periods)
+        evidence_status = "SUFFICIENT" if valid else "INSUFFICIENT"
+        validation_status = "PASSED" if valid else "FAILED: one or more requested comparison periods have no KPI value"
+    elif name == "get_basic_aggregate":
         if result.get("grouping") == "month":
             rows = result.get("rows", [])
-            valid = bool(rows) and all(row.get("value") is not None for row in rows)
+            valid = bool(rows) and all(r.get("value") is not None for r in rows)
         else:
             valid = result.get("value") is not None
-        if valid:
-            evidence_status = "SUFFICIENT"
-            validation_status = "PASSED"
-        else:
-            evidence_status = "INSUFFICIENT"
-            validation_status = "FAILED: aggregate query returned no usable value"
-    elif state.get("tool_name") == "get_transaction_details":
-        evidence_status = "SUFFICIENT" if result.get("found") else "INSUFFICIENT"
-        validation_status = "PASSED" if result.get("found") else "FAILED: transaction not found"
+        evidence_status = "SUFFICIENT" if valid else "INSUFFICIENT"
+        validation_status = "PASSED" if valid else "FAILED: aggregate query returned no usable value"
+    elif name == "get_transaction_details":
+        valid = bool(result.get("found"))
+        evidence_status = "SUFFICIENT" if valid else "INSUFFICIENT"
+        validation_status = "PASSED" if valid else "FAILED: transaction not found"
     else:
         evidence_status = "SUFFICIENT"
         validation_status = "PASSED"
@@ -520,27 +422,21 @@ def validation_node(state: AgentState) -> AgentState:
     return {
         "evidence_status": evidence_status,
         "validation_status": validation_status,
-        "trace": _trace(
-            state,
-            f"[VALIDATION] {validation_status} evidence={evidence_status}",
-        ),
+        "trace": _trace(state, f"[VALIDATION] {validation_status} evidence={evidence_status}"),
     }
 
 
 def safety_stop_node(state: AgentState) -> AgentState:
-    sample = state["question"]
-    valid, reason = validate_readonly_sql(sample)
+    valid, reason = validate_readonly_sql(state["question"])
     if valid:
         reason = "The request asks for a data-changing action, which is outside the agent contract."
-
-    answer = (
-        "Request rejected. This Banking Operations Agent is read-only and cannot execute "
-        f"data-changing SQL or operational updates. Control result: {reason}"
-    )
     return {
         "evidence_status": "NOT_APPLICABLE",
         "validation_status": "BLOCKED",
-        "final_answer": answer,
+        "final_answer": (
+            "Request rejected. This Banking Operations Agent is read-only and cannot execute "
+            f"data-changing SQL or operational updates. Control result: {reason}"
+        ),
         "trace": _trace(state, "[GUARDRAIL] unsafe/write request blocked"),
     }
 
@@ -562,26 +458,16 @@ def fallback_node(state: AgentState) -> AgentState:
 def _format_knowledge_answer(state: AgentState) -> str:
     context = state.get("retrieved_context", [])
     if not context:
-        return (
-            "I could not find an approved definition or rule for this question. "
-            "I will not invent one."
-        )
-
+        return "I could not find an approved definition or rule for this question. I will not invent one."
     best = context[0]
-    return (
-        f"Approved knowledge source: {best['source']} -> {best['section']}\n\n"
-        f"{best['content']}"
-    )
+    return f"Approved knowledge source: {best['source']} -> {best['section']}\n\n{best['content']}"
 
 
 def _format_metric_answer(result: dict[str, Any]) -> str:
-    value = result.get("metric_value")
-    numerator = result.get("metric_numerator")
-    denominator = result.get("metric_denominator")
     return (
-        f"{result['kpi_label']} for {result['channel']} was {value}% for "
+        f"{result['kpi_label']} for {result['channel']} was {result.get('metric_value')}% for "
         f"{result['period_start']} to {result['period_end_exclusive']} (end exclusive). "
-        f"Evidence: numerator={numerator}, denominator={denominator}. "
+        f"Evidence: numerator={result.get('metric_numerator')}, denominator={result.get('metric_denominator')}. "
         f"Source: {result['source']}. SQL validation: {result['sql_validation']}."
     )
 
@@ -590,57 +476,39 @@ def _format_comparison_answer(result: dict[str, Any], mixed: bool = False) -> st
     first = result["first_period"]
     second = result["second_period"]
     delta = result.get("delta_percentage_points")
-
     direction = "increased" if (delta or 0) > 0 else "decreased" if (delta or 0) < 0 else "did not change"
     base = (
         f"{result['kpi_label']} for {result['channel']} {direction} from "
-        f"{first['metric_value']}% ({first['period_start']}) to "
-        f"{second['metric_value']}% ({second['period_start']}), a change of "
-        f"{delta} percentage points. Source: {result['source']}."
+        f"{first['metric_value']}% ({first['period_start']}) to {second['metric_value']}% "
+        f"({second['period_start']}), a change of {delta} percentage points. Source: {result['source']}."
     )
-
     if mixed:
         base += (
-            " The approved knowledge does not define a formal 'concerning' threshold, "
-            "so I would not invent one. The evidence supports describing the period-over-period "
-            "movement; a specific root cause requires additional evidence."
+            " The approved knowledge does not define a formal 'concerning' threshold, so I would not invent one. "
+            "The evidence supports describing the period-over-period movement; a specific root cause requires additional evidence."
         )
-
     return base
 
 
 def _format_multi_period_answer(result: dict[str, Any], mixed: bool = False) -> str:
-    periods = result.get("periods", [])
     period_text = ", ".join(
-        f"{period.get('metric_value')}% ({period.get('period_start')})"
-        for period in periods
+        f"{p.get('metric_value')}% ({p.get('period_start')})" for p in result.get("periods", [])
     )
-    base = (
-        f"{result['kpi_label']} for {result['channel']} across the requested periods was "
-        f"{period_text}."
-    )
-
+    base = f"{result['kpi_label']} for {result['channel']} across the requested periods was {period_text}."
     changes = result.get("changes", [])
     if changes:
-        change_parts = []
+        parts = []
         for change in changes:
             delta = change.get("delta_percentage_points")
             delta_text = "unavailable" if delta is None else f"{float(delta):+.2f}"
-            change_parts.append(
-                f"{change.get('from_period')} to {change.get('to_period')}: "
-                f"{delta_text} percentage points"
-            )
-        base += " Sequential changes: " + "; ".join(change_parts) + "."
-
+            parts.append(f"{change.get('from_period')} to {change.get('to_period')}: {delta_text} percentage points")
+        base += " Sequential changes: " + "; ".join(parts) + "."
     base += f" Source: {result['source']}."
-
     if mixed:
         base += (
-            " The approved knowledge does not define a formal 'concerning' threshold, "
-            "so I would not invent one. The evidence supports describing the multi-period movement; "
-            "a specific root cause requires additional evidence."
+            " The approved knowledge does not define a formal 'concerning' threshold, so I would not invent one. "
+            "The evidence supports describing the multi-period movement; a specific root cause requires additional evidence."
         )
-
     return base
 
 
@@ -648,18 +516,15 @@ def _format_basic_aggregate_answer(result: dict[str, Any]) -> str:
     operation = result.get("operation", "aggregate")
     entity_label = result.get("entity_label", result.get("entity", "Entity"))
     metric_label = result.get("metric_label", "value")
-
     if result.get("grouping") == "month":
         parts = [
             f"{int(row['year']):04d}-{int(row['month']):02d}: {row['value']}"
             for row in result.get("rows", [])
         ]
         return (
-            f"{entity_label} {metric_label} ({operation}) by month: "
-            + "; ".join(parts)
+            f"{entity_label} {metric_label} ({operation}) by month: " + "; ".join(parts)
             + f". Source: {result['source']}. SQL validation: {result['sql_validation']}."
         )
-
     return (
         f"{entity_label} {metric_label} ({operation}) = {result.get('value')}. "
         f"Source: {result['source']}. SQL validation: {result['sql_validation']}."
@@ -668,10 +533,8 @@ def _format_basic_aggregate_answer(result: dict[str, Any]) -> str:
 
 def deterministic_synthesis(state: AgentState) -> str:
     intent = state.get("intent")
-
     if intent == "knowledge_question":
         return _format_knowledge_answer(state)
-
     if state.get("evidence_status") == "INSUFFICIENT":
         error = state.get("tool_result", {}).get("error")
         return (
@@ -680,68 +543,53 @@ def deterministic_synthesis(state: AgentState) -> str:
         )
 
     result = state.get("tool_result", {})
-
     if intent == "operational_metric":
         return _format_metric_answer(result)
     if intent == "basic_aggregate":
         return _format_basic_aggregate_answer(result)
     if intent == "comparison":
-        if result.get("tool") == "compare_kpi_periods":
-            return _format_multi_period_answer(result)
-        return _format_comparison_answer(result)
+        return _format_multi_period_answer(result) if result.get("tool") == "compare_kpi_periods" else _format_comparison_answer(result)
     if intent == "mixed_analysis":
-        if result.get("tool") == "compare_kpi_periods":
-            return _format_multi_period_answer(result, mixed=True)
-        return _format_comparison_answer(result, mixed=True)
+        return _format_multi_period_answer(result, True) if result.get("tool") == "compare_kpi_periods" else _format_comparison_answer(result, True)
     if intent == "transaction_lookup":
         record = result.get("record")
         if not record:
             return f"Transaction {result.get('transaction_id')} was not found in the trusted warehouse."
         return (
-            f"Transaction {record['transaction_id']} has status {record['transaction_status']}, "
-            f"amount {record['amount']} {record['currency']}, fee {record['fee_amount']}, "
-            f"channel {record.get('channel_name')}, at {record['transaction_datetime']}. "
-            "Source: PostgreSQL trusted warehouse."
+            f"Transaction {record['transaction_id']} has status {record['transaction_status']}, amount {record['amount']} "
+            f"{record['currency']}, fee {record['fee_amount']}, channel {record.get('channel_name')}, "
+            f"at {record['transaction_datetime']}. Source: PostgreSQL trusted warehouse."
         )
     if intent == "dq_investigation":
-        rows = result.get("exceptions", [])
         summary = ", ".join(
-            f"{row['exception_type']}={row['exception_count']}" for row in rows
+            f"{row['exception_type']}={row['exception_count']}" for row in result.get("exceptions", [])
         )
         return (
-            f"Current transaction DQ exceptions: {summary}. "
-            "Normal KPI analysis uses the trusted warehouse; exception records remain available "
-            "for audit and investigation. Source: staging.stg_transaction_dq_exceptions."
+            f"Current transaction DQ exceptions: {summary}. Normal KPI analysis uses the trusted warehouse; "
+            "exception records remain available for audit and investigation. Source: staging.stg_transaction_dq_exceptions."
         )
-
     return "The workflow completed, but no supported synthesis route was selected."
 
 
 def optional_claude_synthesis(state: AgentState, deterministic_answer: str) -> str | None:
-    """Optional Claude synthesis. The demo remains functional with USE_LLM=false."""
-
     if os.getenv("USE_LLM", "false").lower() != "true":
         return None
     if Anthropic is None or not os.getenv("ANTHROPIC_API_KEY"):
         return None
-
     model = os.getenv("ANTHROPIC_MODEL")
     if not model:
         return None
 
     client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-    context = state.get("retrieved_context", [])
-    evidence = state.get("tool_result", {})
-
     prompt = f"""
 User question:
 {state['question']}
 
 Approved retrieved context:
-{json.dumps(context, default=str)}
+{json.dumps(state.get('retrieved_context', []), default=str)}
 
 Deterministic tool evidence:
-{json.dumps(evidence, default=str)}
+{json.dumps(state.get('tool_result', {}), default=str)}
 
 Validated deterministic draft:
 {deterministic_answer}
@@ -750,7 +598,6 @@ Write a concise banking-operations answer using only the supplied context and ev
 Do not invent thresholds or root causes. Include source and period where available.
 If evidence is insufficient, say so explicitly.
 """.strip()
-
     response = client.messages.create(
         model=model,
         max_tokens=600,
@@ -761,7 +608,6 @@ If evidence is insufficient, say so explicitly.
         ),
         messages=[{"role": "user", "content": prompt}],
     )
-
     if not response.content:
         return None
     return getattr(response.content[0], "text", None)
@@ -769,20 +615,14 @@ If evidence is insufficient, say so explicitly.
 
 def synthesis_node(state: AgentState) -> AgentState:
     deterministic_answer = deterministic_synthesis(state)
-
     try:
         llm_answer = optional_claude_synthesis(state, deterministic_answer)
     except Exception as exc:
         llm_answer = None
         trace = _trace(state, f"[LLM] Claude synthesis failed; deterministic fallback used: {exc}")
     else:
-        mode = "Claude" if llm_answer else "deterministic"
-        trace = _trace(state, f"[SYNTHESIS] mode={mode}")
-
-    return {
-        "final_answer": llm_answer or deterministic_answer,
-        "trace": trace,
-    }
+        trace = _trace(state, f"[SYNTHESIS] mode={'Claude' if llm_answer else 'deterministic'}")
+    return {"final_answer": llm_answer or deterministic_answer, "trace": trace}
 
 
 def route_after_classify(state: AgentState) -> str:
@@ -797,14 +637,11 @@ def route_after_classify(state: AgentState) -> str:
 
 
 def route_after_retrieve(state: AgentState) -> str:
-    if state.get("intent") == "knowledge_question":
-        return "validate"
-    return "tool"
+    return "validate" if state.get("intent") == "knowledge_question" else "tool"
 
 
 def build_graph():
     builder = StateGraph(AgentState)
-
     builder.add_node("classify", classify_node)
     builder.add_node("retrieve", retrieve_node)
     builder.add_node("tool", tool_node)
@@ -817,24 +654,14 @@ def build_graph():
     builder.add_conditional_edges(
         "classify",
         route_after_classify,
-        {
-            "retrieve": "retrieve",
-            "tool": "tool",
-            "safety_stop": "safety_stop",
-            "fallback": "fallback",
-        },
+        {"retrieve": "retrieve", "tool": "tool", "safety_stop": "safety_stop", "fallback": "fallback"},
     )
-    builder.add_conditional_edges(
-        "retrieve",
-        route_after_retrieve,
-        {"validate": "validate", "tool": "tool"},
-    )
+    builder.add_conditional_edges("retrieve", route_after_retrieve, {"validate": "validate", "tool": "tool"})
     builder.add_edge("tool", "validate")
     builder.add_edge("validate", "synthesize")
     builder.add_edge("synthesize", END)
     builder.add_edge("safety_stop", END)
     builder.add_edge("fallback", END)
-
     return builder.compile()
 
 
@@ -857,18 +684,13 @@ def main() -> None:
     parser.add_argument("--show-state", action="store_true", help="Print final structured state")
     args = parser.parse_args()
 
-    question = " ".join(args.question)
-    result = run_agent(question)
-
+    result = run_agent(" ".join(args.question))
     print(f"\n=== RUN ID ===\n{result.get('run_id')}")
-
     print("\n=== TRACE ===")
     for event in result.get("trace", []):
         print(event)
-
     print("\n=== ANSWER ===")
     print(result.get("final_answer", "No answer returned."))
-
     if args.show_state:
         print("\n=== STATE ===")
         print(json.dumps(result, indent=2, default=str))

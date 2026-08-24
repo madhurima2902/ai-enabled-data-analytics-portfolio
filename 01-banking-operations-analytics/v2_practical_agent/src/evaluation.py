@@ -22,6 +22,16 @@ ROUTING_CASES = [
         "mixed_analysis",
         "compare_kpi_periods",
     ),
+    (
+        "Compare transaction failure rate in January, March, April and June.",
+        "comparison",
+        "compare_kpi_periods",
+    ),
+    (
+        "Compare transaction failure rate in January, February, March, April, May and June.",
+        "comparison",
+        "compare_kpi_periods",
+    ),
     ("Show the data quality exception summary.", "dq_investigation", "get_dq_summary"),
     ("DELETE FROM warehouse.fact_transactions", "unsafe_request", "none"),
 ]
@@ -45,8 +55,23 @@ EXPECTED_DB = {
 }
 
 
-MULTI_PERIOD_REGRESSION_QUESTION = (
-    "Was March concerning for transaction failures compared to January and February?"
+MULTI_PERIOD_ROUTING_CASES = [
+    (
+        "Was March concerning for transaction failures compared to January and February?",
+        [1, 2, 3],
+    ),
+    (
+        "Compare transaction failure rate in January, March, April and June.",
+        [1, 3, 4, 6],
+    ),
+    (
+        "Compare transaction failure rate in January, February, March, April, May and June.",
+        [1, 2, 3, 4, 5, 6],
+    ),
+]
+
+MULTI_PERIOD_END_TO_END_QUESTION = (
+    "Compare transaction failure rate in January, February, March, April, May and June."
 )
 
 
@@ -74,10 +99,17 @@ def check_routing() -> None:
             f"{question!r}: expected tool {expected_tool}, got {result['tool_name']}"
         )
 
-    regression = classify_question(MULTI_PERIOD_REGRESSION_QUESTION)
-    assert regression["tool_args"].get("months") == [1, 2, 3], (
-        "multi-period mixed analysis must preserve January, February and March as requested evidence"
-    )
+    # Multi-period routing must preserve every explicitly requested month, whether
+    # the user names three, four, six, or another supported count within Jan-Jun 2026.
+    for question, expected_months in MULTI_PERIOD_ROUTING_CASES:
+        result = classify_question(question)
+        assert result["tool_name"] == "compare_kpi_periods", (
+            f"{question!r}: expected compare_kpi_periods, got {result['tool_name']}"
+        )
+        assert result["tool_args"].get("months") == expected_months, (
+            f"{question!r}: expected months {expected_months}, "
+            f"got {result['tool_args'].get('months')}"
+        )
 
 
 def check_retrieval() -> None:
@@ -180,11 +212,12 @@ def check_database_controls() -> None:
         f"DQ counts differ. expected={EXPECTED_DB['dq_counts']} actual={actual}"
     )
 
-    # Regression case discovered during manual exploratory testing: a three-period question
-    # must return evidence for all explicitly requested periods rather than silently using two.
-    multi = run_agent(MULTI_PERIOD_REGRESSION_QUESTION)
-    assert multi.get("intent") == "mixed_analysis", (
-        f"expected mixed_analysis, got {multi.get('intent')!r}"
+    # End-to-end regression: the multi-period tool must return every explicitly
+    # requested month. Testing all Jan-Jun months proves the path is not hard-coded
+    # to the original three-month defect case.
+    multi = run_agent(MULTI_PERIOD_END_TO_END_QUESTION)
+    assert multi.get("intent") == "comparison", (
+        f"expected comparison, got {multi.get('intent')!r}"
     )
     assert multi.get("tool_name") == "compare_kpi_periods", (
         f"expected compare_kpi_periods, got {multi.get('tool_name')!r}"
@@ -198,14 +231,22 @@ def check_database_controls() -> None:
 
     periods = multi.get("tool_result", {}).get("periods", [])
     starts = [period.get("period_start") for period in periods]
-    assert starts == ["2026-01-01", "2026-02-01", "2026-03-01"], (
-        f"expected Jan-Feb-Mar evidence, got {starts}"
+    expected_starts = [
+        "2026-01-01",
+        "2026-02-01",
+        "2026-03-01",
+        "2026-04-01",
+        "2026-05-01",
+        "2026-06-01",
+    ]
+    assert starts == expected_starts, (
+        f"expected Jan-Jun evidence, got {starts}"
     )
     assert all(period.get("metric_value") is not None for period in periods), (
         "each requested comparison period must contain a KPI value"
     )
-    assert "2026-03-01" in multi.get("final_answer", ""), (
-        "final answer must include March rather than stopping at February"
+    assert all(period_start in multi.get("final_answer", "") for period_start in expected_starts), (
+        "final answer must include every requested period"
     )
 
 

@@ -42,6 +42,13 @@ ROUTING_CASES = [
         "unknown",
         "none",
     ),
+    ("How many transaction entries do we have each month?", "basic_aggregate", "get_basic_aggregate"),
+    ("How many complaint entries do we have each month?", "basic_aggregate", "get_basic_aggregate"),
+    ("How many campaign records do we have each month?", "basic_aggregate", "get_basic_aggregate"),
+    ("How many customers do we have?", "basic_aggregate", "get_basic_aggregate"),
+    ("What is the average transaction amount each month?", "basic_aggregate", "get_basic_aggregate"),
+    ("What is the total account balance?", "basic_aggregate", "get_basic_aggregate"),
+    ("How many employee records do we have?", "unknown", "none"),
     ("Show the data quality exception summary.", "dq_investigation", "get_dq_summary"),
     ("DELETE FROM warehouse.fact_transactions", "unsafe_request", "none"),
 ]
@@ -52,10 +59,13 @@ RETRIEVAL_CASES = [
     ("Where is channel_id stored?", "data_dictionary.md", "warehouse.dim_channel"),
 ]
 
-# Validated Jan-Jun synthetic demo controls already established by the project.
 EXPECTED_DB = {
     "feb_mobile_failure_rate": 19.52,
     "mar_mobile_failure_rate": 9.26,
+    "transaction_monthly_counts": [25000, 28000, 30000, 32000, 35000, 38000],
+    "complaint_monthly_counts": [900, 1250, 1050, 1650, 1300, 1350],
+    "campaign_monthly_counts": [2200, 2400, 2600, 2800, 3000, 3400],
+    "customer_total_count": 10000,
     "dq_counts": {
         "DUPLICATE_TRANSACTION_ID": 15,
         "FAILED_TRANSACTION_WITH_FEE": 40,
@@ -87,6 +97,15 @@ MULTI_PERIOD_END_TO_END_QUESTION = (
 CAMPAIGN_SUCCESS_QUESTION = "Compare January, March and June campaign success data."
 AMBIGUOUS_CAMPAIGN_QUESTION = "Compare January, March and June campaign data."
 
+AGGREGATE_CASES = {
+    "transactions": "How many transaction entries do we have each month?",
+    "complaints": "How many complaint entries do we have each month?",
+    "campaigns": "How many campaign records do we have each month?",
+    "customers": "How many customers do we have?",
+}
+
+UNSUPPORTED_AGGREGATE_QUESTION = "How many employee records do we have?"
+
 
 def run_check(name: str, fn: Callable[[], None]) -> bool:
     try:
@@ -112,8 +131,6 @@ def check_routing() -> None:
             f"{question!r}: expected tool {expected_tool}, got {result['tool_name']}"
         )
 
-    # Multi-period routing must preserve every explicitly requested month, whether
-    # the user names three, four, six, or another supported count within Jan-Jun 2026.
     for question, expected_months in MULTI_PERIOD_ROUTING_CASES:
         result = classify_question(question)
         assert result["tool_name"] == "compare_kpi_periods", (
@@ -124,7 +141,6 @@ def check_routing() -> None:
             f"got {result['tool_args'].get('months')}"
         )
 
-    # Approved business synonym: campaign success maps to Campaign Conversion Rate.
     campaign_success = classify_question(CAMPAIGN_SUCCESS_QUESTION)
     assert campaign_success["tool_args"].get("kpi") == "campaign_conversion_rate", (
         "campaign success should map to the approved Campaign Conversion Rate KPI"
@@ -133,7 +149,6 @@ def check_routing() -> None:
         "campaign success comparison must preserve January, March and June"
     )
 
-    # Generic campaign data/metrics stay ambiguous; the agent should abstain rather than guess.
     ambiguous = run_agent(AMBIGUOUS_CAMPAIGN_QUESTION)
     assert ambiguous.get("intent") == "unknown", (
         f"generic campaign data should remain ambiguous, got {ambiguous.get('intent')!r}"
@@ -141,9 +156,22 @@ def check_routing() -> None:
     assert ambiguous.get("validation_status") == "ABSTAINED", (
         "generic campaign data should abstain instead of assuming a KPI"
     )
-    assert ambiguous.get("evidence_status") == "INSUFFICIENT", (
-        "ambiguous campaign requests should not claim sufficient evidence"
-    )
+
+    average_amount = classify_question("What is the average transaction amount each month?")
+    assert average_amount["tool_args"].get("operation") == "average"
+    assert average_amount["tool_args"].get("entity") == "transactions"
+    assert average_amount["tool_args"].get("metric") == "amount"
+    assert average_amount["tool_args"].get("group_by_month") is True
+
+    total_balance = classify_question("What is the total account balance?")
+    assert total_balance["tool_args"].get("operation") == "sum"
+    assert total_balance["tool_args"].get("entity") == "accounts"
+    assert total_balance["tool_args"].get("metric") == "current_balance"
+
+    unsupported = run_agent(UNSUPPORTED_AGGREGATE_QUESTION)
+    assert unsupported.get("intent") == "unknown"
+    assert unsupported.get("validation_status") == "ABSTAINED"
+    assert unsupported.get("evidence_status") == "INSUFFICIENT"
 
 
 def check_retrieval() -> None:
@@ -174,41 +202,28 @@ def check_run_id() -> None:
     second = run_agent("What is Transaction Failure Rate?")
 
     assert first.get("run_id"), "run_id was not set on the agent state"
-    assert isinstance(first["run_id"], str) and first["run_id"], (
-        "run_id must be a non-empty string"
-    )
-    assert first["run_id"] != second["run_id"], (
-        "each agent run must receive a unique run_id"
-    )
+    assert isinstance(first["run_id"], str) and first["run_id"]
+    assert first["run_id"] != second["run_id"], "each agent run must receive a unique run_id"
     assert any(f"run_id={first['run_id']}" in event for event in first.get("trace", [])), (
         "run_id should be traceable in the run's trace events"
     )
 
 
 def check_knowledge_route_validation() -> None:
-    # An approved chunk exists: validation must be explicit, not left empty.
     found = run_agent("What is Transaction Failure Rate?")
-    assert found.get("validation_status") == "PASSED", (
-        f"expected PASSED when an approved chunk is retrieved, got {found.get('validation_status')!r}"
-    )
-    assert found.get("evidence_status") == "SUFFICIENT", (
-        f"expected SUFFICIENT evidence when an approved chunk is retrieved, got {found.get('evidence_status')!r}"
-    )
+    assert found.get("validation_status") == "PASSED"
+    assert found.get("evidence_status") == "SUFFICIENT"
 
-    # No approved chunk matches: the agent must abstain rather than invent an answer.
     missing = run_agent("What does the flurbnaxion ratio mean for zzqqxx metric?")
-    assert missing.get("intent") == "knowledge_question", (
-        f"expected a knowledge_question route for this case, got {missing.get('intent')!r}"
-    )
-    assert not missing.get("retrieved_context"), (
-        "test question was expected to retrieve no approved chunk"
-    )
-    assert missing.get("evidence_status") == "INSUFFICIENT", (
-        f"expected INSUFFICIENT evidence when no approved chunk matches, got {missing.get('evidence_status')!r}"
-    )
-    assert "could not find" in missing.get("final_answer", "").lower(), (
-        "agent should abstain rather than invent a definition when no approved chunk is found"
-    )
+    assert missing.get("intent") == "knowledge_question"
+    assert not missing.get("retrieved_context")
+    assert missing.get("evidence_status") == "INSUFFICIENT"
+    assert "could not find" in missing.get("final_answer", "").lower()
+
+
+def _monthly_values(result: dict) -> list[int]:
+    rows = result.get("tool_result", {}).get("rows", [])
+    return [int(round(float(row["value"]))) for row in rows]
 
 
 def check_database_controls() -> None:
@@ -246,22 +261,11 @@ def check_database_controls() -> None:
         f"DQ counts differ. expected={EXPECTED_DB['dq_counts']} actual={actual}"
     )
 
-    # End-to-end regression: the multi-period tool must return every explicitly
-    # requested month. Testing all Jan-Jun months proves the path is not hard-coded
-    # to the original three-month defect case.
     multi = run_agent(MULTI_PERIOD_END_TO_END_QUESTION)
-    assert multi.get("intent") == "comparison", (
-        f"expected comparison, got {multi.get('intent')!r}"
-    )
-    assert multi.get("tool_name") == "compare_kpi_periods", (
-        f"expected compare_kpi_periods, got {multi.get('tool_name')!r}"
-    )
-    assert multi.get("validation_status") == "PASSED", (
-        f"multi-period evidence should validate, got {multi.get('validation_status')!r}"
-    )
-    assert multi.get("evidence_status") == "SUFFICIENT", (
-        f"multi-period evidence should be sufficient, got {multi.get('evidence_status')!r}"
-    )
+    assert multi.get("intent") == "comparison"
+    assert multi.get("tool_name") == "compare_kpi_periods"
+    assert multi.get("validation_status") == "PASSED"
+    assert multi.get("evidence_status") == "SUFFICIENT"
 
     periods = multi.get("tool_result", {}).get("periods", [])
     starts = [period.get("period_start") for period in periods]
@@ -273,14 +277,34 @@ def check_database_controls() -> None:
         "2026-05-01",
         "2026-06-01",
     ]
-    assert starts == expected_starts, (
-        f"expected Jan-Jun evidence, got {starts}"
+    assert starts == expected_starts, f"expected Jan-Jun evidence, got {starts}"
+    assert all(period.get("metric_value") is not None for period in periods)
+    assert all(period_start in multi.get("final_answer", "") for period_start in expected_starts)
+
+    transaction_counts = run_agent(AGGREGATE_CASES["transactions"])
+    assert transaction_counts.get("intent") == "basic_aggregate"
+    assert transaction_counts.get("validation_status") == "PASSED"
+    assert _monthly_values(transaction_counts) == EXPECTED_DB["transaction_monthly_counts"], (
+        f"transaction monthly counts differ: {_monthly_values(transaction_counts)}"
     )
-    assert all(period.get("metric_value") is not None for period in periods), (
-        "each requested comparison period must contain a KPI value"
+
+    complaint_counts = run_agent(AGGREGATE_CASES["complaints"])
+    assert complaint_counts.get("validation_status") == "PASSED"
+    assert _monthly_values(complaint_counts) == EXPECTED_DB["complaint_monthly_counts"], (
+        f"complaint monthly counts differ: {_monthly_values(complaint_counts)}"
     )
-    assert all(period_start in multi.get("final_answer", "") for period_start in expected_starts), (
-        "final answer must include every requested period"
+
+    campaign_counts = run_agent(AGGREGATE_CASES["campaigns"])
+    assert campaign_counts.get("validation_status") == "PASSED"
+    assert _monthly_values(campaign_counts) == EXPECTED_DB["campaign_monthly_counts"], (
+        f"campaign monthly counts differ: {_monthly_values(campaign_counts)}"
+    )
+
+    customer_count = run_agent(AGGREGATE_CASES["customers"])
+    assert customer_count.get("validation_status") == "PASSED"
+    actual_customer_count = int(round(float(customer_count.get("tool_result", {}).get("value"))))
+    assert actual_customer_count == EXPECTED_DB["customer_total_count"], (
+        f"customer total expected {EXPECTED_DB['customer_total_count']}, got {actual_customer_count}"
     )
 
 

@@ -1,0 +1,5 @@
+langgraph>=0.2.0
+langchain-openai>=0.2.0
+python-dotenv>=1.0.1
+psycopg[binary]>=3.2.0
+pandas>=2.2.0

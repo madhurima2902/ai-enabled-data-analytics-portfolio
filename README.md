@@ -21,12 +21,12 @@ This portfolio is built to show the ability to:
 
 | Project | Domain | Status | Core Focus |
 | ------- | ------ | ------ | ---------- |
-| 01 | Banking Operations Analytics | Completed/Documentation Added/Version 2 In progress | Customer intelligence, transactions, complaints, campaigns, incremental refresh |
-| 02 | HR Analytics Power BI | Completed / Documentation Added | Workforce overview, demographics, performance tracking, attrition analysis, DAX, Power BI storytelling |
-| 03 | Supply Chain Performance Analytics | Planned | Inventory, orders, suppliers, delivery performance, operational KPIs |
-| 04 | Retail Customer Operations Analytics | Planned | Sales, customers, products, channels, returns, customer behavior |
+| 01 | Banking Operations Analytics | Completed / V2 in progress | Customer intelligence, transactions, complaints, campaigns, incremental refresh, agentic analytics |
+| 02 | HR Analytics Power BI | Completed / Documentation added | Workforce overview, demographics, performance tracking, attrition analysis, DAX, Power BI storytelling |
+| 03 | Commercial Auto Insurance Analytics | Completed / Documentation added | Quotes, policies, vehicles, claims, premium, loss ratio, retention, data quality |
+| 04 | Healthcare Claims & Provider Operations Analytics | Completed - compact domain project | Claims, denials, reimbursement, payer mix, provider performance, utilization, readmissions, data quality |
 
-Additional domains may be added later, such as healthcare, finance, marketing analytics, or operations analytics.
+Additional domains may be added later, such as supply chain, retail, finance, marketing analytics, or operations analytics.
 
 ## Tools & Technologies
 
@@ -62,8 +62,19 @@ ai-enabled-data-analytics-portfolio/
 │   ├── theme/
 │   └── README.md
 │
-├── portfolio-summary.md
-├── interview-stories.md
+├── 03-commercial-auto-insurance-analytics/
+│   ├── data/
+│   ├── scripts/
+│   ├── sql/
+│   └── README.md
+│
+├── 04-healthcare-claims-provider-analytics/
+│   ├── data/
+│   ├── docs/
+│   ├── scripts/
+│   ├── sql/
+│   └── README.md
+│
 └── README.md
 ```
 
@@ -152,11 +163,13 @@ This portfolio is aligned with roles such as:
 * Analytics Consultant
 * Operations Analyst
 * Customer Analytics Analyst
+* Healthcare Data Analyst
+* Insurance Data Analyst
 * AI-enabled Data Analyst
 
 ## Portfolio Status
 
-This repository is under active development. The HR Analytics Power BI project is the first completed Power BI-first portfolio project, while the Banking Operations Analytics project is being built as a deeper end-to-end analytics project.
+The portfolio now includes completed projects across banking operations, HR analytics, commercial auto insurance, and a compact healthcare claims/provider-operations domain project. The banking project remains the deepest end-to-end project and continues to be enhanced with a practical AI/agent layer.
 
 ## Final Goal
 

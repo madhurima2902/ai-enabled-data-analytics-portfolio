@@ -26,10 +26,12 @@ SELECT ROUND(AVG(c.paid_loss)::numeric,2) AS avg_claim_severity
 FROM claims c
 JOIN policies p ON c.policy_id = p.policy_id;
 
--- 5. Loss ratio using paid loss / written premium for a simple portfolio view
+-- 5. Loss ratio using paid loss / total portfolio written premium for a simple portfolio view
+-- Use a portfolio-level premium subquery rather than SUM(DISTINCT p.written_premium):
+-- different policies can legitimately have the same premium amount.
 SELECT
     ROUND(SUM(c.paid_loss)::numeric,2) AS paid_loss,
-    ROUND(SUM(DISTINCT p.written_premium)::numeric,2) AS written_premium_note,
+    ROUND((SELECT SUM(written_premium) FROM policies)::numeric,2) AS total_written_premium,
     ROUND(100.0 * SUM(c.paid_loss) /
           NULLIF((SELECT SUM(written_premium) FROM policies),0),2) AS paid_loss_ratio_pct
 FROM claims c

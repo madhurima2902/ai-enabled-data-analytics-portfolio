@@ -23,10 +23,9 @@ This portfolio is built to show the ability to:
 | ------- | ------ | ------ | ---------- |
 | 01 | Banking Operations Analytics | Completed / V2 in progress | Customer intelligence, transactions, complaints, campaigns, incremental refresh, agentic analytics |
 | 02 | HR Analytics Power BI | Completed / Documentation added | Workforce overview, demographics, performance tracking, attrition analysis, DAX, Power BI storytelling |
-| 03 | Commercial Auto Insurance Analytics | Completed / Documentation added | Quotes, policies, vehicles, claims, premium, loss ratio, retention, data quality |
-| 04 | Healthcare Claims & Provider Operations Analytics | Completed - compact domain project | Claims, denials, reimbursement, payer mix, provider performance, utilization, readmissions, data quality |
+| 03 | Commercial Auto Insurance Analytics | Completed analytics foundation / SSIS extension in progress | Quotes, policies, vehicles, claims, premium, loss ratio, data quality, ETL learning |
 
-Additional domains may be added later, such as supply chain, retail, finance, marketing analytics, or operations analytics.
+Additional domains may be added later, such as healthcare, supply chain, retail, finance, marketing analytics, or operations analytics.
 
 ## Tools & Technologies
 
@@ -64,13 +63,6 @@ ai-enabled-data-analytics-portfolio/
 │
 ├── 03-commercial-auto-insurance-analytics/
 │   ├── data/
-│   ├── scripts/
-│   ├── sql/
-│   └── README.md
-│
-├── 04-healthcare-claims-provider-analytics/
-│   ├── data/
-│   ├── docs/
 │   ├── scripts/
 │   ├── sql/
 │   └── README.md
@@ -163,13 +155,12 @@ This portfolio is aligned with roles such as:
 * Analytics Consultant
 * Operations Analyst
 * Customer Analytics Analyst
-* Healthcare Data Analyst
 * Insurance Data Analyst
 * AI-enabled Data Analyst
 
 ## Portfolio Status
 
-The portfolio now includes completed projects across banking operations, HR analytics, commercial auto insurance, and a compact healthcare claims/provider-operations domain project. The banking project remains the deepest end-to-end project and continues to be enhanced with a practical AI/agent layer.
+The portfolio currently includes completed analytics work across banking operations, HR analytics, and commercial auto insurance. The banking project remains the deepest end-to-end project. The commercial auto insurance project is being extended with a small SSIS learning exercise so the ETL workflow is demonstrated honestly rather than claimed as prior production experience.
 
 ## Final Goal
 

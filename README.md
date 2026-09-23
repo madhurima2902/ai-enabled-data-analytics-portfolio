@@ -24,7 +24,7 @@ This portfolio is built to show the ability to:
 | 01 | Banking Operations Analytics | Completed / V2 in progress | Customer intelligence, transactions, complaints, campaigns, incremental refresh, agentic analytics |
 | 02 | HR Analytics Power BI | Completed / Documentation added | Workforce overview, demographics, performance tracking, attrition analysis, DAX, Power BI storytelling |
 | 03 | Commercial Auto Insurance Analytics | Completed analytics foundation / SSIS extension in progress | Quotes, policies, vehicles, claims, premium, loss ratio, data quality, ETL learning |
-| 04 | Banking Operations Analytics — Mini | Interview-ready learning version | PostgreSQL, SQL validation/reconciliation, Pandas profiling, dimensional modeling, operational KPIs, Power BI |
+| 04 | Banking Operations Data Management & Reporting | Completed learning project | PostgreSQL, SQL validation/reconciliation, Pandas profiling, dimensional modeling, operational KPIs, Power BI |
 
 Additional domains may be added later, such as healthcare, supply chain, retail, finance, marketing analytics, or operations analytics.
 
@@ -48,34 +48,9 @@ Additional domains may be added later, such as healthcare, supply chain, retail,
 ai-enabled-data-analytics-portfolio/
 │
 ├── 01-banking-operations-analytics/
-│   ├── data/
-│   ├── scripts/
-│   ├── sql/
-│   ├── powerbi/
-│   ├── docs/
-│   └── README.md
-│
 ├── 02-hr-analytics-powerbi/
-│   ├── powerbi/
-│   ├── assets/
-│   ├── docs/
-│   ├── theme/
-│   └── README.md
-│
 ├── 03-commercial-auto-insurance-analytics/
-│   ├── data/
-│   ├── scripts/
-│   ├── sql/
-│   └── README.md
-│
 ├── 04-banking-operations-analytics-mini/
-│   ├── data/
-│   ├── python/
-│   ├── sql/
-│   ├── docs/
-│   ├── assets/
-│   └── README.md
-│
 └── README.md
 ```
 
@@ -142,34 +117,15 @@ ai-enabled-data-analytics-portfolio/
 
 These projects are designed to simulate real business analytics environments rather than simple tutorial-style outputs.
 
-Each project aims to include:
-
-* Realistic business context
-* Clear data model explanation
-* Clean KPI logic
-* Stakeholder-focused reporting
-* Dashboard usability review
-* Insight and recommendation documentation
-* Interview-ready explanation
-* Practical AI-assisted workflow
+Each project aims to include realistic business context, clear data-model explanations, reliable KPI logic, stakeholder-focused reporting, data-quality controls, and practical documentation.
 
 ## Target Role Alignment
 
-This portfolio is aligned with roles such as:
-
-* Data Analyst
-* Business Intelligence Analyst
-* Power BI Analyst
-* Reporting Analyst
-* Analytics Consultant
-* Operations Analyst
-* Customer Analytics Analyst
-* Insurance Data Analyst
-* AI-enabled Data Analyst
+This portfolio is aligned with roles such as Data Analyst, Business Intelligence Analyst, Power BI Analyst, Reporting Analyst, Analytics Consultant, Operations Analyst, Customer Analytics Analyst, Insurance Data Analyst, and AI-enabled Data Analyst.
 
 ## Portfolio Status
 
-The portfolio currently includes completed analytics work across banking operations, HR analytics, and commercial auto insurance. Project 04 is a deliberately smaller banking data-management and reporting version intended for clear interview walkthroughs without the broader agentic-AI scope of Project 01.
+The portfolio includes completed analytics work across banking operations, HR analytics, and commercial auto insurance. Project 04 focuses specifically on the core data-management and reporting workflow behind banking operations analytics: source profiling, database validation, reconciliation, dimensional modeling, KPI analysis, and Power BI reporting.
 
 ## Final Goal
 

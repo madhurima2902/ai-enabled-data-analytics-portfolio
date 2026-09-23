@@ -1,11 +1,28 @@
--- Mini reporting model
--- Assumes cleaned staging tables already exist.
--- Scope intentionally limited to transactions, complaints, and SLA reporting.
+/*
+PROJECT WALKTHROUGH — REPORTING MODEL
+
+How I explain this file:
+This file creates the reporting-oriented data model that sits between the cleaned staging data and Power BI.
+
+I separate business events from descriptive attributes. Transactions, complaints, and SLA tickets are the event or fact tables. Customer, account, branch, channel, and date are dimensions used to analyze those events.
+
+The most important concept is grain:
+- fact_transactions = one row per transaction
+- fact_complaints = one row per complaint
+- fact_sla_tickets = one row per service ticket
+
+I generate reporting keys for the dimensions and keep the original business IDs for traceability.
+
+Why this matters:
+If a dimension key is not unique or a join multiplies fact rows, the dashboard can produce believable but incorrect KPIs. The model therefore works together with the validation checks in 02_data_quality_checks.sql.
+*/
 
 CREATE SCHEMA IF NOT EXISTS warehouse;
 
 -- ============================================================
 -- DIMENSIONS
+-- These tables describe the people, accounts, locations,
+-- channels, and dates associated with business events.
 -- ============================================================
 
 DROP TABLE IF EXISTS warehouse.dim_account;
@@ -14,6 +31,9 @@ DROP TABLE IF EXISTS warehouse.dim_branch;
 DROP TABLE IF EXISTS warehouse.dim_channel;
 DROP TABLE IF EXISTS warehouse.dim_date;
 
+-- Customer dimension:
+-- One row per customer. ROW_NUMBER creates a reporting key while
+-- customer_id remains available as the original business identifier.
 CREATE TABLE warehouse.dim_customer AS
 SELECT
     ROW_NUMBER() OVER (ORDER BY customer_id) AS customer_key,
@@ -33,6 +53,8 @@ ALTER TABLE warehouse.dim_customer
 ADD CONSTRAINT uq_dim_customer_id UNIQUE (customer_id);
 
 
+-- Branch dimension:
+-- One row per branch, including geographic and branch-type attributes.
 CREATE TABLE warehouse.dim_branch AS
 SELECT
     ROW_NUMBER() OVER (ORDER BY branch_id) AS branch_key,
@@ -51,6 +73,9 @@ ALTER TABLE warehouse.dim_branch
 ADD CONSTRAINT uq_dim_branch_id UNIQUE (branch_id);
 
 
+-- Channel dimension:
+-- One row per transaction/service channel. The is_digital flag
+-- supports digital versus non-digital reporting.
 CREATE TABLE warehouse.dim_channel AS
 SELECT
     ROW_NUMBER() OVER (ORDER BY channel_id) AS channel_key,
@@ -67,6 +92,9 @@ ALTER TABLE warehouse.dim_channel
 ADD CONSTRAINT uq_dim_channel_id UNIQUE (channel_id);
 
 
+-- Account dimension:
+-- One row per account. LEFT JOINs retain the account even if a
+-- related customer or branch lookup fails, making unresolved keys visible.
 CREATE TABLE warehouse.dim_account AS
 SELECT
     ROW_NUMBER() OVER (ORDER BY a.account_id) AS account_key,
@@ -91,6 +119,8 @@ ALTER TABLE warehouse.dim_account
 ADD CONSTRAINT uq_dim_account_id UNIQUE (account_id);
 
 
+-- Date dimension:
+-- Provides reusable calendar attributes for trend and period analysis.
 CREATE TABLE warehouse.dim_date AS
 SELECT
     TO_CHAR(calendar_date, 'YYYYMMDD')::INT AS date_key,
@@ -115,13 +145,17 @@ ADD CONSTRAINT pk_dim_date PRIMARY KEY (date_key);
 
 -- ============================================================
 -- FACTS
+-- These tables store the business events that are measured.
 -- ============================================================
 
 DROP TABLE IF EXISTS warehouse.fact_sla_tickets;
 DROP TABLE IF EXISTS warehouse.fact_complaints;
 DROP TABLE IF EXISTS warehouse.fact_transactions;
 
--- Grain: one row per transaction
+-- Transaction fact
+-- Grain: one row per transaction.
+-- The dimension keys make it possible to analyze transactions by
+-- customer, account, branch, channel, and date.
 CREATE TABLE warehouse.fact_transactions AS
 SELECT
     ROW_NUMBER() OVER (ORDER BY t.transaction_id) AS transaction_key,
@@ -158,7 +192,9 @@ LEFT JOIN warehouse.dim_date dd
     ON t.transaction_datetime::DATE = dd.full_date;
 
 
--- Grain: one row per complaint
+-- Complaint fact
+-- Grain: one row per complaint.
+-- This supports complaint volume, resolution rate, and resolution-time analysis.
 CREATE TABLE warehouse.fact_complaints AS
 SELECT
     ROW_NUMBER() OVER (ORDER BY c.complaint_id) AS complaint_key,
@@ -190,7 +226,9 @@ LEFT JOIN warehouse.dim_date dd
     ON c.complaint_date = dd.full_date;
 
 
--- Grain: one row per SLA/service ticket
+-- SLA ticket fact
+-- Grain: one row per service ticket.
+-- The 0/1 flags make SLA-met and SLA-breached counts easy to aggregate.
 CREATE TABLE warehouse.fact_sla_tickets AS
 SELECT
     ROW_NUMBER() OVER (ORDER BY s.ticket_id) AS sla_ticket_key,

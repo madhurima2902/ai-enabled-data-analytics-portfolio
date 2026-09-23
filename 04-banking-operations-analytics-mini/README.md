@@ -1,6 +1,6 @@
-# Retail Banking Operations Analytics — Interview Mini
+# Retail Banking Operations Analytics — Data Management & Reporting Mini
 
-This is a **learning project** focused on the data management and reporting side of retail banking operations. I created this smaller version for interview discussion so I can clearly explain the full data flow without mixing in unrelated AI/agent components.
+This is a **learning project** focused on the data management and reporting side of retail banking operations. It is a deliberately smaller version of the broader banking project so the core workflow—profiling, validation, modeling, analysis, and reporting—can be reviewed clearly without unrelated AI/agent components.
 
 ## What I wanted to learn
 
@@ -125,8 +125,7 @@ The reporting layer is designed to answer questions such as:
 │   ├── 02_data_quality_checks.sql
 │   └── 03_business_queries.sql
 ├── docs/
-│   ├── DATA_MODEL.md
-│   └── INTERVIEW_WALKTHROUGH.md
+│   └── DATA_MODEL.md
 └── assets/
     ├── 01_executive_overview.png
     ├── 02_channel_performance.png

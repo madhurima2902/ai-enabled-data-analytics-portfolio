@@ -1,121 +1,177 @@
-# Retail Banking Operations Analytics — Data Management & Reporting Mini
+# Retail Banking Operations Analytics — Data Management & Reporting
 
-This is a **learning project** focused on the data management and reporting side of retail banking operations. It is a deliberately smaller version of the broader banking project so the core workflow—profiling, validation, modeling, analysis, and reporting—can be reviewed clearly without unrelated AI/agent components.
+This project demonstrates an end-to-end banking operations reporting workflow using **Python/Pandas, PostgreSQL, SQL, Power BI, and Git/GitHub**.
 
-## What I wanted to learn
+The business objective is to create a reliable operational view of transaction performance, customer complaints, and service-level performance. The technical objective is to make sure the reporting layer is trustworthy before KPIs are presented to a business user.
 
-I wanted to go beyond importing a clean CSV directly into Power BI and understand more of what happens before reporting:
+## How I explain the project
 
-- how source data is profiled and checked
-- how raw data is loaded into PostgreSQL
-- how SQL is used for validation, reconciliation, and transformations
-- how fact and dimension tables support reporting
-- how operational KPIs are defined and investigated in Power BI
+I started with a simple question: **what has to happen before a dashboard can be trusted?**
 
-## Tools
+Rather than treating the source files as automatically clean, I profile the incoming data, load it into a relational database, validate relationships and business rules, reconcile record counts, create a reporting model, and only then calculate KPIs and visualize them in Power BI.
 
-- **Python / Pandas** — source-data profiling and basic validation
-- **PostgreSQL** — relational database
-- **SQL** — data-quality checks, warehouse transformations, and KPI queries
-- **Power BI** — operational reporting and visualization
-- **Git / GitHub** — version control
+The project follows this flow:
 
-## Project scope
+```text
+Synthetic source files
+        ↓
+Python / Pandas
+Source profiling and basic checks
+        ↓
+PostgreSQL
+Raw / staging data
+        ↓
+SQL
+Validation, reconciliation, transformation
+        ↓
+Dimensional reporting model
+Facts + dimensions
+        ↓
+Power BI
+Operational KPIs and investigation
+```
 
-The mini version focuses on five related data areas:
+## Business questions
 
-- Customers
-- Accounts
-- Transactions
-- Complaints
-- SLA / service tickets
+The reporting layer is designed to help an operations team answer questions such as:
+
+- Are transactions succeeding at the expected rate?
+- Are failures concentrated in a particular channel?
+- Which complaint categories are creating the most customer pain?
+- How quickly are complaints being resolved?
+- Which support teams or priorities have higher SLA breaches?
+- If a KPI deteriorates, where should the team investigate next?
+
+## Data areas
+
+The project uses connected banking operations data covering:
+
+- **Customers** — who the bank serves.
+- **Accounts** — the customer accounts on which activity occurs.
+- **Transactions** — operational events such as successful and failed transactions.
+- **Complaints** — customer-reported issues and their resolution status.
+- **SLA tickets** — internal service tickets used to measure operational responsiveness.
+- **Channels and branches** — dimensions used to understand where activity and problems are concentrated.
 
 The data is synthetic and was created for learning and portfolio use.
 
-## Data flow
+## Step 1 — Profile the source data with Python/Pandas
 
-```text
-Synthetic CSV files
-        ↓
-Python / Pandas
-profiling + basic checks
-        ↓
-PostgreSQL raw / staging data
-        ↓
-SQL validation + transformation
-        ↓
-Reporting model
-facts + dimensions
-        ↓
-Power BI
-operational KPIs
-```
+Before loading data into reporting, I first want to understand the source.
 
-## Reporting model
+The Python profiling script checks row counts, column counts, missing values, full-row duplicates, duplicate business IDs, and basic status distributions.
 
-### Fact tables
+The purpose is not to perform every transformation in Python. I use Pandas because it is convenient for quickly inspecting incoming files. Once the data is in PostgreSQL, I use SQL for relational validation, reconciliation, transformation, and business analysis.
 
-- **fact_transactions** — one row per transaction
-- **fact_complaints** — one row per complaint
-- **fact_sla_tickets** — one row per service ticket
+See: `python/profile_source_data.py`
 
-### Dimensions
+## Step 2 — Build a reporting-oriented data model
 
-- **dim_customer**
-- **dim_account**
-- **dim_branch**
-- **dim_channel**
-- **dim_date**
+The reporting layer separates **business events** from the descriptive information used to analyze them.
 
-Being explicit about **grain** was important because an incorrect join can duplicate event rows and distort KPIs.
+The fact tables contain events:
 
-## Data-quality checks demonstrated
+- `fact_transactions` — one row per transaction.
+- `fact_complaints` — one row per complaint.
+- `fact_sla_tickets` — one row per service ticket.
 
-The project includes examples of:
+The dimensions describe those events:
 
-- duplicate transaction IDs
-- missing values
-- orphan account/customer references
-- row-count reconciliation
-- failed transactions with unexpected fees
-- missing channel references
-- reporting-model integrity checks
+- `dim_customer`
+- `dim_account`
+- `dim_branch`
+- `dim_channel`
+- `dim_date`
 
-I treat exceptions as something to **investigate first**, rather than automatically deleting or filling them.
+The most important concept here is **grain**: I need to know exactly what one row represents before I calculate a KPI. If a join accidentally duplicates an event row, transaction counts, amounts, or failure rates can become incorrect even though the final dashboard still looks reasonable.
 
-## Example business questions
+See: `docs/DATA_MODEL.md`
 
-The reporting layer is designed to answer questions such as:
+## Step 3 — Validate and reconcile the data
 
-- What is the transaction success / failure rate?
-- Which channels have higher failure rates?
-- Which complaint categories are most common?
-- What is the complaint resolution rate?
-- Which support teams have higher SLA breach rates?
-- Where should an operations team investigate process issues?
+A successful data load does not automatically mean the data is correct.
 
-## Power BI examples
+The SQL checks therefore look for:
+
+- duplicate transaction IDs;
+- transactions with no matching account or customer;
+- missing channel references;
+- failed transactions with unexpected fees;
+- differences between staging and reporting row counts;
+- duplicated transaction IDs in the reporting fact;
+- unresolved dimension-key lookups.
+
+One example is the orphan-account check. The business question behind the SQL is simple: **do I have any transaction claiming to belong to an account that does not exist in the account data?**
+
+If an exception is found, I investigate the cause before deciding whether the record should be corrected, excluded, or retained as a known exception.
+
+See: `sql/02_data_quality_checks.sql`
+
+## Step 4 — Calculate business KPIs
+
+Once the reporting layer is validated, SQL is used to answer business questions rather than only technical questions.
+
+Examples include:
+
+- overall transaction success rate;
+- transaction failure rate by channel;
+- total complaint volume and resolution rate;
+- average complaint resolution time;
+- complaint concentration by category and priority;
+- SLA breach rate by support team and ticket priority.
+
+The goal is to move from **“What is the number?”** to **“Where is the problem concentrated, and what should operations investigate?”**
+
+See: `sql/03_business_queries.sql`
+
+## Step 5 — Present the results in Power BI
 
 ### Executive overview
+
+The executive page gives a high-level view of banking operations. It is intended to answer: **Is the operation healthy, and is anything changing enough to require investigation?**
 
 ![Executive Overview](assets/01_executive_overview.png)
 
 ### Channel performance
 
+The channel view helps determine whether a transaction problem is broad or concentrated in a particular channel. A localized issue requires a very different operational response from a bank-wide issue.
+
 ![Channel Performance](assets/02_channel_performance.png)
 
 ### Complaints
+
+Complaint reporting provides a customer-impact perspective. If transaction performance deteriorates and complaints rise in the same channel or period, that provides stronger evidence about where the problem may be occurring.
 
 ![Complaints Analysis](assets/03_complaints_analysis.png)
 
 ### SLA performance
 
+The SLA page moves from customer impact to the internal process. If one team or ticket type has higher breaches, the next step is to investigate workload, prioritization, handoffs, process bottlenecks, or automation opportunities.
+
 ![SLA Performance](assets/04_sla_performance.png)
 
-## Repository structure
+## How the technical and business pieces connect
+
+The dashboard is not the end of the analysis.
+
+The workflow is:
+
+**Reliable source data → validated reporting model → trustworthy KPI → focused investigation → operational/process-improvement question.**
+
+For example, if the overall transaction failure rate rises, I would first break it down by channel and time period. If one channel is driving the increase, I would then investigate the relevant transaction types, operational changes, and related complaint patterns.
+
+Similarly, if SLA breaches are concentrated in one support team, I would investigate whether the cause is capacity, prioritization, handoffs, or another process constraint.
+
+## What I learned
+
+The most important learning from this project is that visualization is only one part of analytics. Reliable reporting also requires clear KPI definitions, correct grain, dependable relationships, data-quality checks, and reconciliation between processing layers.
+
+This project was built in a controlled learning environment using synthetic data. The next level of experience is applying the same reasoning in an existing client environment with real schemas, established refresh processes, data dependencies, change controls, and downstream users.
+
+## Project files
 
 ```text
-.
+04-banking-operations-analytics-mini/
 ├── README.md
 ├── requirements.txt
 ├── python/
@@ -125,14 +181,13 @@ The reporting layer is designed to answer questions such as:
 │   ├── 02_data_quality_checks.sql
 │   └── 03_business_queries.sql
 ├── docs/
-│   └── DATA_MODEL.md
+│   ├── DATA_MODEL.md
+│   └── PROJECT_WALKTHROUGH.md
+├── data/
+│   └── README.md
 └── assets/
     ├── 01_executive_overview.png
     ├── 02_channel_performance.png
     ├── 03_complaints_analysis.png
     └── 04_sla_performance.png
 ```
-
-## What this project does not claim
-
-This is not presented as a production banking system. I built it in a controlled learning environment where I know the data and schema. The next experience I want is working in an existing client environment where schemas, refresh dependencies, change controls, failures, and downstream users already exist.

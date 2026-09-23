@@ -24,6 +24,7 @@ This portfolio is built to show the ability to:
 | 01 | Banking Operations Analytics | Completed / V2 in progress | Customer intelligence, transactions, complaints, campaigns, incremental refresh, agentic analytics |
 | 02 | HR Analytics Power BI | Completed / Documentation added | Workforce overview, demographics, performance tracking, attrition analysis, DAX, Power BI storytelling |
 | 03 | Commercial Auto Insurance Analytics | Completed analytics foundation / SSIS extension in progress | Quotes, policies, vehicles, claims, premium, loss ratio, data quality, ETL learning |
+| 04 | Banking Operations Analytics — Mini | Interview-ready learning version | PostgreSQL, SQL validation/reconciliation, Pandas profiling, dimensional modeling, operational KPIs, Power BI |
 
 Additional domains may be added later, such as healthcare, supply chain, retail, finance, marketing analytics, or operations analytics.
 
@@ -65,6 +66,14 @@ ai-enabled-data-analytics-portfolio/
 │   ├── data/
 │   ├── scripts/
 │   ├── sql/
+│   └── README.md
+│
+├── 04-banking-operations-analytics-mini/
+│   ├── data/
+│   ├── python/
+│   ├── sql/
+│   ├── docs/
+│   ├── assets/
 │   └── README.md
 │
 └── README.md
@@ -160,7 +169,7 @@ This portfolio is aligned with roles such as:
 
 ## Portfolio Status
 
-The portfolio currently includes completed analytics work across banking operations, HR analytics, and commercial auto insurance. The banking project remains the deepest end-to-end project. The commercial auto insurance project is being extended with a small SSIS learning exercise so the ETL workflow is demonstrated honestly rather than claimed as prior production experience.
+The portfolio currently includes completed analytics work across banking operations, HR analytics, and commercial auto insurance. Project 04 is a deliberately smaller banking data-management and reporting version intended for clear interview walkthroughs without the broader agentic-AI scope of Project 01.
 
 ## Final Goal
 

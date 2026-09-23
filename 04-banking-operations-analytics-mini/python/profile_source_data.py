@@ -1,3 +1,24 @@
+"""
+PROJECT WALKTHROUGH — SOURCE DATA PROFILING
+
+How I explain this file:
+I use Python/Pandas at the beginning of the workflow to understand the
+incoming source files before relying on them for reporting.
+
+The script checks:
+- row and column counts;
+- missing values;
+- full-row duplicates;
+- duplicate business IDs such as transaction_id;
+- transaction and complaint status distributions;
+- selected business-rule exceptions.
+
+I deliberately keep the Python role straightforward. Pandas is useful for
+fast source-file profiling. Once the data is in PostgreSQL, SQL becomes the
+main tool for relational validation, reconciliation, transformation, and
+business analysis.
+"""
+
 from pathlib import Path
 import pandas as pd
 
@@ -6,6 +27,7 @@ RAW_DIR = PROJECT_DIR / "data" / "raw"
 
 
 def profile_dataframe(name: str, df: pd.DataFrame, id_column: str | None = None) -> None:
+    """Print a compact quality profile for one source dataset."""
     print(f"\n=== {name.upper()} ===")
     print(f"rows: {len(df):,}")
     print(f"columns: {len(df.columns)}")
@@ -25,6 +47,8 @@ def profile_dataframe(name: str, df: pd.DataFrame, id_column: str | None = None)
 
 
 def main() -> None:
+    # Load the operational files and parse the date/time columns so that
+    # they can be analyzed correctly instead of remaining plain strings.
     transactions = pd.read_csv(
         RAW_DIR / "raw_transactions.csv",
         parse_dates=["transaction_datetime"],
@@ -40,16 +64,20 @@ def main() -> None:
         parse_dates=["created_datetime", "due_datetime", "resolved_datetime"],
     )
 
+    # Run the same profiling checks across the three operational datasets.
     profile_dataframe("transactions", transactions, "transaction_id")
     profile_dataframe("complaints", complaints, "complaint_id")
     profile_dataframe("sla tickets", sla_tickets, "ticket_id")
 
+    # Status distributions help me quickly understand whether the data
+    # contains the categories I expect and whether one status dominates.
     print("\n=== TRANSACTION STATUS ===")
     print(transactions["transaction_status"].value_counts(dropna=False))
 
     print("\n=== COMPLAINT STATUS ===")
     print(complaints["complaint_status"].value_counts(dropna=False))
 
+    # Selected control checks provide a quick view of known exception types.
     print("\n=== CONTROL CHECKS ===")
     print(
         "missing transaction channel_id:",

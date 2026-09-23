@@ -1,167 +1,139 @@
-# AI-Enabled Data Analytics Portfolio
+# Retail Banking Operations Analytics — Interview Mini
 
-This repository showcases end-to-end data analytics projects focused on business intelligence, data quality, dimensional modeling, KPI reporting, dashboard storytelling, and AI-assisted analysis.
+This is a **learning project** focused on the data management and reporting side of retail banking operations. I created this smaller version for interview discussion so I can clearly explain the full data flow without mixing in unrelated AI/agent components.
 
-The goal of this portfolio is to demonstrate practical analytics skills required for modern Data Analyst, Business Intelligence Analyst, Reporting Analyst, and Analytics Consultant roles.
+## What I wanted to learn
 
-## Portfolio Objective
+I wanted to go beyond importing a clean CSV directly into Power BI and understand more of what happens before reporting:
 
-This portfolio is built to show the ability to:
+- how source data is profiled and checked
+- how raw data is loaded into PostgreSQL
+- how SQL is used for validation, reconciliation, and transformations
+- how fact and dimension tables support reporting
+- how operational KPIs are defined and investigated in Power BI
 
-* Understand business problems
-* Design and document analytical datasets
-* Build fact and dimension models
-* Write business-focused SQL and DAX measures
-* Perform data quality and logic checks
-* Build Power BI dashboards
-* Explain insights to stakeholders
-* Use AI tools to improve productivity, documentation, and analysis quality
+## Tools
 
-## Current Project Roadmap
+- **Python / Pandas** — source-data profiling and basic validation
+- **PostgreSQL** — relational database
+- **SQL** — data-quality checks, warehouse transformations, and KPI queries
+- **Power BI** — operational reporting and visualization
+- **Git / GitHub** — version control
 
-| Project | Domain | Status | Core Focus |
-| ------- | ------ | ------ | ---------- |
-| 01 | Banking Operations Analytics | Completed / V2 in progress | Customer intelligence, transactions, complaints, campaigns, incremental refresh, agentic analytics |
-| 02 | HR Analytics Power BI | Completed / Documentation added | Workforce overview, demographics, performance tracking, attrition analysis, DAX, Power BI storytelling |
-| 03 | Commercial Auto Insurance Analytics | Completed analytics foundation / SSIS extension in progress | Quotes, policies, vehicles, claims, premium, loss ratio, data quality, ETL learning |
+## Project scope
 
-Additional domains may be added later, such as healthcare, supply chain, retail, finance, marketing analytics, or operations analytics.
+The mini version focuses on five related data areas:
 
-## Tools & Technologies
+- Customers
+- Accounts
+- Transactions
+- Complaints
+- SLA / service tickets
 
-* SQL
-* PostgreSQL
-* Python
-* Pandas
-* Power BI
-* Power Query
-* DAX
-* GitHub
-* Data modeling
-* Data quality checks
-* AI-assisted analysis and documentation
+The data is synthetic and was created for learning and portfolio use.
 
-## Repository Structure
+## Data flow
 
 ```text
-ai-enabled-data-analytics-portfolio/
-│
-├── 01-banking-operations-analytics/
-│   ├── data/
-│   ├── scripts/
-│   ├── sql/
-│   ├── powerbi/
-│   ├── docs/
-│   └── README.md
-│
-├── 02-hr-analytics-powerbi/
-│   ├── powerbi/
-│   ├── assets/
-│   ├── docs/
-│   ├── theme/
-│   └── README.md
-│
-├── 03-commercial-auto-insurance-analytics/
-│   ├── data/
-│   ├── scripts/
-│   ├── sql/
-│   └── README.md
-│
-└── README.md
+Synthetic CSV files
+        ↓
+Python / Pandas
+profiling + basic checks
+        ↓
+PostgreSQL raw / staging data
+        ↓
+SQL validation + transformation
+        ↓
+Reporting model
+facts + dimensions
+        ↓
+Power BI
+operational KPIs
 ```
 
-## Skills Demonstrated
+## Reporting model
 
-### SQL & Data Analysis
+### Fact tables
 
-* Joins
-* Aggregations
-* CTEs
-* Window functions
-* KPI calculations
-* Data validation queries
-* Business analysis queries
+- **fact_transactions** — one row per transaction
+- **fact_complaints** — one row per complaint
+- **fact_sla_tickets** — one row per service ticket
 
-### Data Modeling
+### Dimensions
 
-* Fact and dimension tables
-* Date dimensions
-* Active and inactive relationships
-* Reporting-ready semantic models
-* Stakeholder-focused table grain explanation
+- **dim_customer**
+- **dim_account**
+- **dim_branch**
+- **dim_channel**
+- **dim_date**
 
-### Python
+Being explicit about **grain** was important because an incorrect join can duplicate event rows and distort KPIs.
 
-* Synthetic data generation
-* CSV file creation
-* Data cleaning
-* Data validation
-* Monthly refresh simulation
-* Controlled error injection
+## Data-quality checks demonstrated
 
-### Power BI
+The project includes examples of:
 
-* Power Query transformations
-* Data modeling
-* Relationships
-* DAX measures
-* KPI cards
-* Trend analysis
-* Executive dashboards
-* Drilldown/detail dashboards
-* Report navigation and theme consistency
+- duplicate transaction IDs
+- missing values
+- orphan account/customer references
+- row-count reconciliation
+- failed transactions with unexpected fees
+- missing channel references
+- reporting-model integrity checks
 
-### Data Quality
+I treat exceptions as something to **investigate first**, rather than automatically deleting or filling them.
 
-* Duplicate detection
-* Null validation
-* Referential integrity checks
-* Invalid value checks
-* Business rule validation
-* Logic checks for misleading dashboard outputs
+## Example business questions
 
-### AI-Assisted Analytics
+The reporting layer is designed to answer questions such as:
 
-* DAX validation support
-* Dashboard design critique
-* Business insight generation
-* Documentation support
-* Stakeholder summary drafting
-* Interview-prep narrative creation
+- What is the transaction success / failure rate?
+- Which channels have higher failure rates?
+- Which complaint categories are most common?
+- What is the complaint resolution rate?
+- Which support teams have higher SLA breach rates?
+- Where should an operations team investigate process issues?
 
-## Project Philosophy
+## Power BI examples
 
-These projects are designed to simulate real business analytics environments rather than simple tutorial-style outputs.
+### Executive overview
 
-Each project aims to include:
+![Executive Overview](assets/01_executive_overview.png)
 
-* Realistic business context
-* Clear data model explanation
-* Clean KPI logic
-* Stakeholder-focused reporting
-* Dashboard usability review
-* Insight and recommendation documentation
-* Interview-ready explanation
-* Practical AI-assisted workflow
+### Channel performance
 
-## Target Role Alignment
+![Channel Performance](assets/02_channel_performance.png)
 
-This portfolio is aligned with roles such as:
+### Complaints
 
-* Data Analyst
-* Business Intelligence Analyst
-* Power BI Analyst
-* Reporting Analyst
-* Analytics Consultant
-* Operations Analyst
-* Customer Analytics Analyst
-* Insurance Data Analyst
-* AI-enabled Data Analyst
+![Complaints Analysis](assets/03_complaints_analysis.png)
 
-## Portfolio Status
+### SLA performance
 
-The portfolio currently includes completed analytics work across banking operations, HR analytics, and commercial auto insurance. The banking project remains the deepest end-to-end project. The commercial auto insurance project is being extended with a small SSIS learning exercise so the ETL workflow is demonstrated honestly rather than claimed as prior production experience.
+![SLA Performance](assets/04_sla_performance.png)
 
-## Final Goal
+## Repository structure
 
-The final goal is to create a strong, interview-ready portfolio that demonstrates practical ability to convert raw business data into reliable insights, dashboards, and stakeholder-ready recommendations.
+```text
+.
+├── README.md
+├── requirements.txt
+├── python/
+│   └── profile_source_data.py
+├── sql/
+│   ├── 01_reporting_model.sql
+│   ├── 02_data_quality_checks.sql
+│   └── 03_business_queries.sql
+├── docs/
+│   ├── DATA_MODEL.md
+│   └── INTERVIEW_WALKTHROUGH.md
+└── assets/
+    ├── 01_executive_overview.png
+    ├── 02_channel_performance.png
+    ├── 03_complaints_analysis.png
+    └── 04_sla_performance.png
+```
+
+## What this project does not claim
+
+This is not presented as a production banking system. I built it in a controlled learning environment where I know the data and schema. The next experience I want is working in an existing client environment where schemas, refresh dependencies, change controls, failures, and downstream users already exist.
